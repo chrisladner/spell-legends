@@ -8,7 +8,7 @@ sobald sie einmal geöffnet wurde. Gerüst nach Word Legends (`wl-v6`).
 „Spell“ heißt Zauberspruch und buchstabieren. Die internen Kennungen bleiben `dl` (`deutschlegends.v1`, `DL1:`,
 Cache `dl-…`): Sie benennen das Fach, daran hängt der Fortschritt – nie ändern.
 
-**Stand `dl-v2`** (erste veröffentlichte Version; `dl-v1` war nur das lokale Gerüst). Grundlage:
+**Stand `dl-v3`** (`dl-v2` = erste veröffentlichte Version, 07.11.2026; `dl-v3`: Regelkarten mit Formen untereinander, Abfrage passt über die Tastatur). Grundlage:
 `auftraege/2026-11-07_deutsch-app.md` (Abschnitt 5) und `auftraege/2026-11-07_deutsch-app/bauauftrag.md`.
 
 ## Aufs iPhone
@@ -87,6 +87,8 @@ node apps/deutsch-legends/tools/stoff-pruefen.mjs --merken   # vor dem Veröffen
 | Verben | Fürwort (ich/er/sie/es) wird entfernt; „backte/buk“ zählt; `alt` (österreichisch) voll richtig mit „Stimmt auch. Auf deinem Blatt steht …“ |
 | Listen | Reihenfolge egal, getrennt durch Beistrich, Leerzeichen oder „und“; jedes genau einmal |
 | Eingabe | `autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false"`, ß-Knopf über der Tastatur, Enter springt ins nächste Feld, hat/ist als Knöpfe; als/wie im Blitz-Check als Knöpfe, danach getippt |
+| Tastatur offen (seit `dl-v3`) | Die Abfrage ist so hoch wie der sichtbare Bereich über der Tastatur (`--vvh`, `body.kb`). Kopf, Band und Felder rücken zusammen. Passt eine Tipp-Karte trotzdem nicht, setzt `passend()` nur während der Frage diese Stufen: `.eng` (doppelter Hinweis `.qhint.zusatz` weg, Frage kleiner) · `.enger` (auch das Band weg) · `.scrollt` (Auftrag und Hinweis an den Anfang der Karte, der Rest scrollt). Wichtige Hinweise (Verb, Ausgangssatz, Kategorie, Auftrag) bleiben **immer** stehen; ein neuer Hinweis, der nur die Feldnamen wiederholt, bekommt die Klasse `zusatz`. Ab 5 Feldern hat das Formular bei offener Tastatur 3 Spalten (`sehrviele`). Nach dem Prüfen klappen Felder ein, die nichts mehr brauchen (`felderEinklappen()`, nie das Feld mit dem Cursor), damit die Rückmeldung Platz hat; die Zeile über der Karte fällt weg (`.rm`). Ein angetipptes Feld klappt immer auf. Die Tastatur bleibt die ganze Runde offen |
+| Regeltexte | `regelHTML()`: festes Leerzeichen vor „ – “ und nicht trennender Bindestrich am Anfang einer Endung (-er, -sten), damit „sinken – sank“ und „-sten“ nicht auseinanderbrechen. Formen untereinander als `<table class="gtable formen">` mit dem Fachbegriff als `<br><i>…</i>` |
 
 ## Termin, Plan-Karte, Eltern-Verbindung
 
@@ -109,14 +111,14 @@ Merkkarte) · `papier` (nur Altstand dl-v1) · `stats` (xp bleibt aus dl-v1, wir
 newCount, extra) · `ui` (hideInstall, onboarded, ziellinie, titel, bereit, perfekt) · `schreiben` (`a` je Auftrag:
 person, start, fertig, haken, selbst, herz, aus, ausN, rate, dauer · `t` je Schreib-Trank: lv, passt) · `log` · `plaene`.
 Neue Felder nur über `fresh()` und `upgrade()`; ein unlesbarer Stand wird als `deutschlegends.v1.kaputt` beiseitegelegt.
-Update dl-v1 → dl-v2: alle Felder bleiben, `ui.ziellinie` fehlt → der Ziellinien-Bildschirm kommt einmal.
+Update dl-v1 → dl-v2: alle Felder bleiben, `ui.ziellinie` fehlt → der Ziellinien-Bildschirm kommt einmal. Update dl-v2 → dl-v3: Speicher unverändert.
 
 ## Offline und Updates
 
 Wie Word Legends seit `wl-v5`: App-Dateien mit Internet frisch vom Server (höchstens 2,5 s warten), sonst aus dem
-Cache. Neue `VERSION` (in `sw.js` **und** `app.js`, Stand `dl-v2`) wird beim Öffnen und beim Zurückholen erkannt; die
+Cache. Neue `VERSION` (in `sw.js` **und** `app.js`, Stand `dl-v3`) wird beim Öffnen und beim Zurückholen erkannt; die
 App lädt neu, sobald sie auf der Startseite ist, nie mitten in einer Runde. Der Service Worker löscht nur eigene Caches
-(`dl-…`). Die laufende Version steht unten in den Einstellungen („Version 2“).
+(`dl-…`). Die laufende Version steht unten in den Einstellungen („Version 3“).
 
 ## Dateien
 
@@ -141,10 +143,16 @@ Auf localhost ist der Offline-Cache aus (mit `?sw` trotzdem testen). Browser-Kon
 | `DL.tag()` | Tagesmenge wie auf der Startseite: fällig/neu A und Extra, Verben, Minuten, Deckel, Schreibauftrag, Zielstand |
 | `DL.autoRunde({ p, vw, schreiben, seed })` | Simulation: spielt die Tagesrunde ohne Oberfläche (p = richtig bei Wiederholungen, vw = im Blitz-Check gewusst), Schreibauftrag mit „Passt“ |
 | `DL.check(id, eingabe, variante)` | Antwort prüfen; id einer Karte oder eines Pool-Beispiels; eingabe = Text oder Liste je Feld/Lücke, Verb Vergangenheit `['hat', 'gegangen']` oder `'ist gegangen'` |
-| `DL.ueben(['id', …], art)` | bestimmte Karten gleich üben (`art` 'check' = wie beim ersten Mal) |
+| `DL.ueben(['id', …], art)` | bestimmte Karten gleich üben (`art` 'check' = wie beim ersten Mal); auch `'vcheck:v-bieten'` (Verb-Check) und `'regel:v'` (Regelkarte eines Pakets) |
 | `DL.ziel()` · `DL.prognose()` · `DL.stoff()` | Zielstand · „Bereit frühestens …“ · geladener Stoff und Fehler darin |
 | `DL.bericht()` · `DL.urteil()` · `DL.eingabe()` | Lagebericht, Ampel, Eingabe dafür |
 | `DL.melden()` · `DL.sync` | melden und sichern (nur mit Verbindung) · Verbindungszustand |
+
+Tastatur nachstellen (Chrome, Fenster 393 × 852 = iPhone 16): in der Konsole
+`Object.defineProperty(visualViewport, 'height', { configurable: true, get: () => 462 })`,
+`document.documentElement.style.setProperty('--st', '59px')`, `dispatchEvent(new Event('resize'))`. 462 = Safari mit
+Tastatur, 503 = Home-Bildschirm-App mit Tastatur, 852 = Tastatur zu. Echt testen: iOS-Simulator (siehe
+`wissen/plattform.md`).
 
 Lernstand aus einem Sicherungs-Code: `node werkzeuge/lernstand.mjs datei.txt` (Format 2 folgt, SOLL).
 

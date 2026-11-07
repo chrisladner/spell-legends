@@ -17,7 +17,7 @@ const APP_NAME = 'Spell Legends';
 const APP_ID = 'dl';                    // Legends HQ: Lagebericht und Sicherung (/^[a-z]{2,8}$/)
 const STORE_KEY = 'deutschlegends.v1';  // Speicher des Fortschritts – nie ändern
 const CODE_PREFIX = 'DL1:';             // Sicherungs-Code (werkzeuge/lernstand.mjs kennt ihn)
-const VERSION = 'dl-v2';                // wie VERSION in sw.js – immer beide zusammen hochzählen
+const VERSION = 'dl-v3';                // wie VERSION in sw.js – immer beide zusammen hochzählen
 const DAY_KEY = 'dl.dayOffset';         // sessionStorage: Zeitsprung zum Testen (DL.shiftDays)
 
 // ================================================================
@@ -1294,12 +1294,18 @@ function confetti() {
   };
   requestAnimationFrame(frame);
 }
+// Regeltexte (Merkkarte, Zauberbuch): kein Zeilenumbruch vor „–“ (sinken – sank) und keiner nach dem Bindestrich einer
+// Endung (-er, -sten, -te)
+function regelHTML(h) {
+  return String(h || '').replace(/ – /g, '\u00a0– ').replace(/(^|[\s>(„])-(?=[a-zäöüß])/g, '$1\u2011');
+}
 // Sichtbare Höhe über der Tastatur (iPhone) für das Layout der Abfrage
 function syncViewport() {
   const vv = window.visualViewport;
   const h = vv ? vv.height : innerHeight;
   document.documentElement.style.setProperty('--vvh', h + 'px');
   document.body.classList.toggle('kb', !!vv && innerHeight - vv.height > 120);
+  if (screen === 'session') passend();
 }
 if (window.visualViewport) visualViewport.addEventListener('resize', syncViewport);
 addEventListener('resize', syncViewport);
@@ -1728,7 +1734,7 @@ function kartenZustand(c) {
 // Lösung einer Karte (Trank-Detail). Noch nie gesehene Karten zeigen keine Lösung – sonst wäre der Blitz-Check nichts wert.
 function loesungHTML(c) {
   const v = c.views ? c.views[0] : null;
-  if (!v) return `<p class="fineprint">Regel-Trank: Jedes Mal kommt ein anderes Beispiel.</p>${c.p.regel ? `<div class="rulebody mini">${c.p.regel}</div>` : ''}`;
+  if (!v) return `<p class="fineprint">Regel-Trank: Jedes Mal kommt ein anderes Beispiel.</p>${c.p.regel ? `<div class="rulebody mini">${regelHTML(c.p.regel)}</div>` : ''}`;
   let h = '';
   if (v.eingabe === 'tippen' && v.typ !== 'luecke') h = `<div class="fz-list">${v.felder.map(f => `<div class="fz ok"><span class="fl">${esc(f.label)}</span><span class="fv">${esc(f.antworten[0])}</span></div>`).join('')}</div>`;
   else if (v.typ === 'luecke') h = `<p class="satz">${satzHTML(v, v.felder.map(f => f.antworten[0]))}</p>`;
@@ -1774,7 +1780,7 @@ function zauberbuchScreen(tab = 'regeln') {
     // Gesperrt, bis alle Pakete des Eintrags begonnen haben – sonst stünden Antworten von Karten vor ihrem
     // Blitz-Check im Buch (und gewusst heißt Stern bis nach dem Test). Gesperrt = nur der Titel, kein Inhalt im DOM.
     body = zb.map(r => zbOffen(r)
-      ? `<details class="panel zb"><summary>${esc(r.titel || r.id)}</summary><div class="rulebody">${r.html || ''}</div></details>`
+      ? `<details class="panel zb"><summary>${esc(r.titel || r.id)}</summary><div class="rulebody">${regelHTML(r.html)}</div></details>`
       : `<div class="panel zb gesperrt" aria-disabled="true"><p class="zb-titel">${esc(r.titel || r.id)}</p><p class="fineprint">Kommt dran, sobald du damit anfängst.</p></div>`).join('');
   } else if (tab === 'familien') {
     const fams = Object.create(null);
@@ -2024,7 +2030,8 @@ function sessionShell() {
   };
   E.form.addEventListener('submit', e => { e.preventDefault(); onSubmit(); });
   E.inputs.forEach((inp, i) => {
-    inp.addEventListener('focus', () => { if (SES) SES.lastFocus = i; });
+    // Ein Feld mit dem Cursor ist nie eingeklappt (z. B. Tastatur in der Rückmeldung zu, dann ein Feld angetippt)
+    inp.addEventListener('focus', () => { if (SES) SES.lastFocus = i; E.rows[i].classList.remove('zu'); });
     // Enter springt ins nächste Feld, im letzten wird geprüft; während der Rückmeldung heißt Enter „Weiter“
     inp.addEventListener('keydown', e => {
       if (e.key !== 'Enter' || !SES) return;
@@ -2066,6 +2073,35 @@ function mode(kind, label) {
   E.next.disabled = false;
   if (label) (kind === 'pruef' ? E.pruef : E.next).textContent = label;
   if (typing) focusField(firstField()); else E.inputs.forEach(x => x.blur());
+  passend();
+}
+// Tastatur offen (iPhone): Über der Tastatur ist wenig Platz. Passt die Karte nicht ganz hinein, rückt die Abfrage
+// enger zusammen (.eng: doppelter Hinweis und Text links weg, Frage kleiner · .enger: auch das Band · .scrollt: passt
+// immer noch nicht, Auftrag und Hinweis rücken nach oben). Wichtige Hinweise (Verb, Ausgangssatz, Kategorie) bleiben
+// immer stehen. Nur während der Frage –
+// die Rückmeldung darf scrollen und zeigt ihr Band immer.
+function passend() {
+  const ses = E.wrap && E.wrap.closest('.session');
+  if (!ses) return;
+  const frage = !!SES && SES.phase === 'answer';
+  ses.classList.toggle('rm', !!SES && !frage);   // Rückmeldung: oben nur Kopfzeile (CSS bei offener Tastatur)
+  ses.classList.remove('eng', 'enger', 'scrollt');
+  if (!document.body.classList.contains('kb') || !frage || E.form.hidden) return;   // nur bei Tipp-Aufgaben
+  // offsetHeight statt scrollHeight: Die Pop-Animation vergrößert die Karte kurz (transform) – das zählt hier nicht
+  const pad = parseFloat(getComputedStyle(E.wrap).paddingBottom) || 0;
+  const passt = () => E.card.offsetHeight + pad <= E.wrap.clientHeight + 1;
+  if (passt()) return;
+  ses.classList.add('eng');
+  if (passt()) return;
+  ses.classList.add('enger');
+  if (!passt()) ses.classList.add('scrollt');
+}
+// Rückmeldung bei offener Tastatur: Felder, die nichts mehr brauchen, klappen ein (CSS nur mit body.kb), damit die
+// Rückmeldung über der Tastatur Platz hat. Das Feld mit dem Cursor bleibt immer stehen – sonst ginge die Tastatur zu.
+function felderEinklappen() {
+  const aktiv = document.activeElement;
+  E.rows.forEach((row, i) => row.classList.toggle('zu', !row.hidden && !SES.offen.includes(i) && !row.contains(aktiv)));
+  passend();
 }
 function fieldVisible(i) { return !E.rows[i].hidden && !E.inputs[i].hidden; }
 function firstField() {
@@ -2097,12 +2133,12 @@ function szEinfuegen() {
 // Felder einrichten: getippt oder angetippt (wahl, z. B. hat/ist). layout: Klasse am Formular (Verbzeile)
 function setFields(felder, layout = '') {
   SES.seg = [];
-  E.form.className = 'answer' + (layout ? ' ' + layout : felder.length >= 3 ? ' viele' : '');
+  E.form.className = 'answer' + (layout ? ' ' + layout : felder.length >= 3 ? ' viele' : '') + (felder.length >= 5 ? ' sehrviele' : '');
   const typed = felder.map((f, i) => (f.wahl ? -1 : i)).filter(i => i >= 0);
   E.rows.forEach((row, i) => {
     const f = felder[i];
     row.hidden = !f;
-    row.classList.remove('nolabel');
+    row.classList.remove('nolabel', 'zu');
     if (!f) return;
     const inp = E.inputs[i], seg = E.segs[i];
     E.labels[i].textContent = f.label;
@@ -2235,7 +2271,7 @@ function satzHTML(v, gefuellt) {
 }
 function promptHTML(v, t) {
   const frage = t && t.art === 'check' && v.frage ? `<div class="qhint">${esc(v.frage)}</div>` : '';
-  if (v.typ === 'verb') return `<div class="q">${esc(v.wort)}</div><div class="qhint">${v.form === 'prae' ? 'Mitvergangenheit: er …' : 'Vergangenheit: er hat … oder er ist …'}</div>`;
+  if (v.typ === 'verb') return `<div class="q">${esc(v.wort)}</div><div class="qhint zusatz">${v.form === 'prae' ? 'Mitvergangenheit: er …' : 'Vergangenheit: er hat … oder er ist …'}</div>`;
   if (v.typ === 'luecke') return `${frage}<p class="satz">${satzHTML(v)}</p>${v.hinweis ? `<div class="qhint">${esc(v.hinweis)}</div>` : ''}`;
   if (v.typ === 'tippen') {
     if (v.diktat) return `${frage}<button class="speak keepfocus" type="button" data-act="vorlesen">🔊 Anhören</button>${v.hinweis ? `<div class="qhint">${esc(v.hinweis)}</div>` : ''}`;
@@ -2259,7 +2295,7 @@ function toolsHTML(t, c, v) {
 function showRegel(t) {
   const p = PAKET[t.paket];
   E.chip.textContent = 'Neue Regel – lies sie dir kurz durch';
-  E.card.innerHTML = `<div class="band rule"><span>${esc(p.titel)}</span><span>${esc(BEREICH[p.bereich].kurz)}</span></div><div class="cbody rulebody">${p.regel}</div>`;
+  E.card.innerHTML = `<div class="band rule"><span>${esc(p.titel)}</span><span>${esc(BEREICH[p.bereich].kurz)}</span></div><div class="cbody rulebody">${regelHTML(p.regel)}</div>`;
   restartAnim(E.card, 'pop');
   mode('next', 'Verstanden – los geht’s');
 }
@@ -2278,7 +2314,7 @@ function showTippen(t, c, v) {
 function showVerbCheck(t) {
   const v = VERB[t.verb];
   E.chip.textContent = 'Kennst du die schon?';
-  E.card.innerHTML = `<div class="band new"><span>Blitz-Check</span><span>Verben</span></div><div class="cbody"><div class="q">${esc(v.inf)}</div><div class="qhint">Mitvergangenheit (er …) und Vergangenheit (er hat/ist …)</div></div>`;
+  E.card.innerHTML = `<div class="band new"><span>Blitz-Check</span><span>Verben</span></div><div class="cbody"><div class="q">${esc(v.inf)}</div><div class="qhint zusatz">Mitvergangenheit (er …) und Vergangenheit (er hat/ist …)</div></div>`;
   restartAnim(E.card, 'pop');
   E.tools.innerHTML = '<button class="tool keepfocus" type="button" data-act="idk">Kenn ich noch nicht</button>';
   setFields([{ label: 'Mitvergangenheit' }, { label: 'hat oder ist', wahl: ['hat', 'ist'] }, { label: '2. Mittelwort' }], 'verbzeile3');
@@ -2540,6 +2576,7 @@ function feedbackTippen(t, c, r, erg, info) {
   });
   E.main.textContent = needRetype ? 'Prüfen' : 'Weiter';
   focusField(needRetype ? SES.offen[0] : firstField());
+  felderEinklappen();
 }
 function feedbackVerbCheck(t, v, xPrae, xPerf, ergebnis, weissNicht) {
   const fx = [xPrae, xPerf[0], xPerf[1]];
@@ -2575,6 +2612,7 @@ function feedbackVerbCheck(t, v, xPrae, xPerf, ergebnis, weissNicht) {
   });
   E.main.textContent = SES.offen.length ? 'Prüfen' : 'Weiter';
   focusField(SES.offen.length ? SES.offen[0] : firstField());
+  felderEinklappen();
 }
 // Abschreiben: genau die gezeigte richtige Form (bei Listen: alle Teile, Reihenfolge egal)
 function retype() {
@@ -2590,6 +2628,7 @@ function retype() {
   SES.offen = noch;
   if (!noch.length) { SES.ausgebessert++; sfx('tap'); zeit(logTime()); save(); return next(); }
   focusField(noch[0]);
+  felderEinklappen();
 }
 
 // ---------- Antippen: eine Antwort (wahl, Lücke mit Knöpfen), mit „dann“ ein zweiter Schritt ----------
@@ -3695,9 +3734,12 @@ window.DL = {
   },
   ziel: () => zielStand(),
   prognose: () => prognose(),
-  // Bestimmte Karten gleich üben, ohne Stufen zu ändern: DL.ueben(['st-kern-1']) · art 'check' wie beim ersten Mal
+  // Bestimmte Karten gleich üben, ohne Stufen zu ändern: DL.ueben(['st-kern-1']) · art 'check' wie beim ersten Mal ·
+  // auch 'vcheck:v-bieten' (Verb-Check) und 'regel:v' (Regelkarte eines Pakets)
   ueben(ids, art = 'ueben') {
-    startSession('ueben', [].concat(ids).filter(id => BY_ID[id]).map(id => ({ id, art })));
+    startSession('ueben', [].concat(ids).map(id => (/^vcheck:/.test(id) ? (VERB[id.slice(7)] ? { art: 'vcheck', verb: id.slice(7) } : null)
+      : /^regel:/.test(id) ? (PAKET[id.slice(6)] ? { art: 'regel', paket: id.slice(6) } : null)
+      : BY_ID[id] ? { id, art } : null)).filter(Boolean));
     return SES ? SES.queue.length + 1 : 0;
   },
   get ses() { return SES && { cur: SES.cur, phase: SES.phase, karte: SES.cur && BY_ID[SES.cur.id], offen: SES.offen.slice(), rest: SES.queue.length, sek: Math.round(SES.sek) }; },
