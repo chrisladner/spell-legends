@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Name und Farbe: mit APP_NAME (app.js), --field (styles.css), manifest.webmanifest und icons/icon-source.html ändern -->
+  <meta name="theme-color" content="#8E2A93">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Spell Legends">
+  <meta name="format-detection" content="telephone=no, email=no, address=no, date=no">
+  <meta name="description" content="Deutsch üben für die Schularbeit: Zaubertränke füllen bis über die Ziellinie, offline am iPhone.">
+  <title>Spell Legends</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app"></main>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <script src="stoff.js"></script>
+  <script src="legends-status.js"></script>
+  <script src="legends-sync.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
