@@ -808,15 +808,19 @@ function planTag() { const t = today(); return PLAN_START && t < PLAN_START ? PL
 // Vor dem ersten Plan-Tag ist nichts Pflicht. Ein vergangener Tag davor zählt darum nie als ausgelassen (nichts
 // offen), und wer dort schon geübt hat, hat seine Runde (fertig). Bis dl-v3 stand der Inhalt des frühen Starts als
 // „offen“ im Protokoll: Am Tag nach dem Einrichten (So 08.11.2026) zeigten die Plan-Karte und Legends HQ den
-// Einrichtungstag als ausgelassen, die Ampel „Aufholen“. Läuft vor jedem Bericht und berichtigt auch alte Protokolle.
+// Einrichtungstag als ausgelassen, die Ampel „Aufholen“. Läuft vor jedem Bericht.
+// Welcher Tag „vor dem Start“ war, steht im Tag selbst (vs = 1, gesetzt, solange heute < PLAN_START) – nie am
+// heutigen PLAN_START gemessen: Rückt der mit neuem Stoff nach hinten, blieben echte Plan-Tage sonst nicht, wie sie
+// waren. Ohne Merker (dl-v1 bis dl-v3) gilt alles vor dem ersten Plan-Tag überhaupt (VORSTART_ALT).
+const VORSTART_ALT = '2026-11-08';
 function vorStartTage() {
-  if (!PLAN_START) return;
   const t = today();
   for (const [d, x] of Object.entries(S.log)) {
-    if (d >= PLAN_START || d >= t || !x || typeof x !== 'object') continue;
+    if (d >= t || !x || typeof x !== 'object' || !(x.vs === 1 || d < VORSTART_ALT)) continue;
     x.o = 0;
     if ((x.a || 0) + (x.n || 0) > 0) x.f = 1;
   }
+  if (STATUS && PLAN_START && t < PLAN_START) STATUS.eintrag(S.log, t).vs = 1;
 }
 
 // ================================================================

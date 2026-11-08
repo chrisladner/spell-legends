@@ -100,9 +100,12 @@ node apps/deutsch-legends/tools/stoff-pruefen.mjs --merken   # vor dem Veröffen
   fällige und neue A plus 1 für den Schreibauftrag; am Testtag nichts. Den Termin meldet die App nur, wenn die geladene
   `legends-status.js` `vorwissen` kennt – sonst zeigte eine alte Kopie zu Unrecht Rot.
 - Früher Start: Wer vor dem ersten Plan-Tag (`PLAN_START`, 08.11.2026) öffnet, bekommt dessen Inhalt schon – freiwillig.
-  `vorStartTage()` (vor jedem Bericht) setzt darum vergangene Tage vor `PLAN_START` im Protokoll auf nichts offen
-  (`o = 0`, „nichts fällig“) bzw. auf fertig, wenn dort geübt wurde. Bis `dl-v3` zählte der Einrichtungstag (07.11.)
-  am nächsten Tag als ausgelassen, Ampel „Aufholen“ (seit `dl-v4` behoben, alte Protokolle werden berichtigt).
+  `vorStartTage()` (vor jedem Bericht) merkt sich solche Tage im Protokoll (`vs = 1`) und setzt sie, sobald sie vorbei
+  sind, auf nichts offen (`o = 0`, „nichts fällig“) bzw. auf fertig, wenn dort geübt wurde. Gemessen wird am Merker,
+  nie am heutigen `PLAN_START`: Rückt der mit neuem Stoff nach hinten, bleiben echte Plan-Tage, wie sie waren. Ohne
+  Merker (Protokolle aus `dl-v1` bis `dl-v3`) gilt nur die Zeit vor dem 08.11.2026 (`VORSTART_ALT`). Bis `dl-v3`
+  zählte der Einrichtungstag (07.11.) am nächsten Tag als ausgelassen, Ampel „Aufholen“. Bekannt: Legends HQ zeigt
+  das noch, solange der letzte Bericht vom Tag vor dem Start ist (Server rechnet den Berichtstag als offen).
 - Plan-Karte: Im Plan Lime, Aufholen Sonne, Notfallplan Orange; `pause` (kein Termin) und `unbekannt` grau.
 - Melden nach dem Start, beim Zurückholen (höchstens alle 10 Minuten) und am Ende jeder Runde und jedes
   Schreibauftrags; Sichern (verschlüsselt) am Ende jeder Runde.
@@ -116,7 +119,7 @@ newCount, extra) · `ui` (hideInstall, onboarded, ziellinie, titel, bereit, perf
 person, start, fertig, haken, selbst, herz, aus, ausN, rate, dauer · `t` je Schreib-Trank: lv, passt) · `log` · `plaene`.
 Neue Felder nur über `fresh()` und `upgrade()`; ein unlesbarer Stand wird als `deutschlegends.v1.kaputt` beiseitegelegt.
 Update dl-v1 → dl-v2: alle Felder bleiben, `ui.ziellinie` fehlt → der Ziellinien-Bildschirm kommt einmal. Update dl-v2 → dl-v3: Speicher unverändert. Update dl-v3 → dl-v4: Speicher unverändert; nur im `log` werden Tage vor
-`PLAN_START` berichtigt (`o = 0`, mit Üben `f = 1`).
+dem 08.11.2026 berichtigt (`o = 0`, mit Üben `f = 1`). Neu im `log`: `vs = 1` = Tag vor dem Plan-Start (früher Start).
 
 ## Offline und Updates
 
