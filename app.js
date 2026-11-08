@@ -17,7 +17,7 @@ const APP_NAME = 'Spell Legends';
 const APP_ID = 'dl';                    // Legends HQ: Lagebericht und Sicherung (/^[a-z]{2,8}$/)
 const STORE_KEY = 'deutschlegends.v1';  // Speicher des Fortschritts – nie ändern
 const CODE_PREFIX = 'DL1:';             // Sicherungs-Code (werkzeuge/lernstand.mjs kennt ihn)
-const VERSION = 'dl-v4';                // wie VERSION in sw.js – immer beide zusammen hochzählen
+const VERSION = 'dl-v5';                // wie VERSION in sw.js – immer beide zusammen hochzählen
 const DAY_KEY = 'dl.dayOffset';         // sessionStorage: Zeitsprung zum Testen (DL.shiftDays)
 
 // ================================================================
@@ -1505,49 +1505,100 @@ function zielHTML(z, plan) {
     ${startHTML(plan)}
   </div>`;
 }
-// Start-Knopf mit „N fällig · N neu · Schreibauftrag … · ca. N Min.“, sonst „Für heute erledigt“
-function startHTML(plan) {
-  const si = schreibInfo();
+// ---------- Deine Mission heute (Projektleitung, 08.11.2026: „Klarer Tagesauftrag“) ----------
+// Mission = der ganze Tag: ① die Runde (Karten, A des Tages) und an Schreibtagen ② ein Schreibauftrag auf Papier.
+// Reihenfolge, wie das Kind mag. Herzeigen und Ausbessern gehören nicht dazu (sie stehen unter dem Kasten). Offenes
+// zeigt ○, nie ✕ oder Rot. Am Testtag gibt es keine Mission: Aufwärmen ist freiwillig, die Startseite bleibt wie
+// bisher. Dieselbe Rechnung meldet der Lagebericht (heuteOffen, fortschritt.schreiben).
+function missionHeute(plan = tagesPlan(), si = schreibInfo()) {
+  const e = S.log[today()] || {};
+  const rundeOffen = aOffen(plan) > 0;   // Extra unter dem Deckel gehört nicht zur Mission
+  return {
+    rundeOffen,
+    schreibTag: si.pflichtOffen || si.heuteGeprueft.length > 0,   // gibt es heute ein ②?
+    schreibOffen: si.pflichtOffen,
+    fertig: !rundeOffen && !si.pflichtOffen,
+    getan: (e.a || 0) + (e.n || 0) > 0 || si.heuteGeprueft.length > 0   // heute schon etwas dafür gemacht
+  };
+}
+// „① Runde · 12 fällig · 8 neu · ca. 15 Min.“ (am 1. Tag statt der Zahlen der Blitz-Check). Gezählt wird, was der
+// Start-Knopf wirklich bringt, also mit dem Extra, das heute unter den Deckel passt.
+function rundeText(plan, nummer) {
   const faellig = plan.aDue.length + plan.eDue.length;
   const neu = plan.aNeu.length + plan.eNeu.length;
-  const schreibTeil = si.pflichtOffen ? `Schreibauftrag „${esc(kurzTitel(si.offen))}“` : '';
-  // Am Testtag ist Aufwärmen freiwillig: keine Etappen, die nach Pflicht aussehen
-  const etappen = plan.testtag ? '' : `<div class="etappen">
-      <span class="${aOffen(plan) ? '' : 'ok'}">${aOffen(plan) ? '○' : '✓'} Etappe 1: Runde</span>
-      ${si.offen || si.heuteGeprueft.length ? `<span class="${si.pflichtOffen ? '' : 'ok'}">${si.pflichtOffen ? '○' : '✓'} Etappe 2: Schreiben</span>` : ''}
-    </div>`;
-  if (faellig || neu) {
-    const ersterTag = !KARTEN.some(c => S.k[c.id]);
-    const teile = [];
-    if (ersterTag && plan.verben.length) teile.push('Blitz-Check: Welche Verben kannst du schon?');
-    else {
-      if (faellig) teile.push(`<b>${faellig}</b> fällig`);
-      if (neu) teile.push(`<b>${neu}</b> neu`);
-    }
-    if (schreibTeil) teile.push(schreibTeil);
-    teile.push(`ca. ${minuten(plan.sek)} Min.`);
-    const knopf = plan.testtag ? 'Aufwärmen' : 'Start';
-    return `<button class="btn go big start" type="button" data-act="start">${knopf}</button>
-      <p class="mission-line">${teile.join(' · ')}</p>${etappen}`;
+  const teile = [`<b>${nummer ? '① ' : ''}Runde</b>`];
+  if (!KARTEN.some(c => S.k[c.id]) && plan.verben.length) teile.push('Blitz-Check: Welche Verben kannst du schon?');
+  else {
+    if (faellig) teile.push(`${faellig} fällig`);
+    if (neu) teile.push(`${neu} neu`);
   }
-  if (si.pflichtOffen) {
-    return `<button class="btn go big start" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">Jetzt schreiben</button>
-      <p class="mission-line">Weiter: ${schreibTeil} · Papier, ca. ${esc(si.offen.minuten || 6)} Min.</p>${etappen}`;
+  teile.push(`ca. ${minuten(plan.sek)} Min.`);
+  return teile.join(' · ');
+}
+// Eine Zeile im Kasten: offen = antippbar (führt zu dem Schritt), erledigt = nur ✓
+function missionZeile(offen, html, act, id) {
+  const haken = `<span class="mhaken" role="img" aria-label="${offen ? 'offen' : 'erledigt'}">${offen ? '○' : '✓'}</span>`;
+  return offen
+    ? `<button class="mzeile" type="button" data-act="${act}"${id ? ` data-id="${esc(id)}"` : ''}>${haken}<span class="mtext">${html}</span></button>`
+    : `<div class="mzeile ok">${haken}<span class="mtext">${html}</span></div>`;
+}
+// Unter der Ziel-Karte: Kasten „Deine Mission heute“ mit ① und ②, Start führt zum nächsten offenen Schritt.
+// Ganz fertig: „Mission geschafft ✓“, dann wie bisher „Morgen bereit“, Extra-Paket und Freies Üben.
+function startHTML(plan) {
+  if (plan.testtag) return testtagStartHTML(plan);
+  const si = schreibInfo();
+  const m = missionHeute(plan, si);
+  const zwei = m.schreibTag;   // ohne Schreibauftrag heute: eine Zeile ohne Nummer
+  const runde = missionZeile(m.rundeOffen, m.rundeOffen ? rundeText(plan, zwei) : `<b>${zwei ? '① ' : ''}Runde</b>`, 'start');
+  const schreiben = !zwei ? '' : missionZeile(m.schreibOffen,
+    m.schreibOffen ? `<b>② Schreiben auf Papier</b> · „${esc(kurzTitel(si.offen))}“ · ca. ${esc(si.offen.minuten || 6)} Min.` : '<b>② Schreiben auf Papier</b>',
+    'schreiben', m.schreibOffen ? si.offen.id : '');
+  if (m.fertig) {
+    // Nichts fällig und nichts gemacht (z. B. nach dem Test): wie bisher „Für heute erledigt“, ohne Mission
+    if (!m.getan) return `<p class="mission-done">Für heute erledigt ✓</p>${nachMissionHTML(plan)}`;
+    return `<div class="mission fertig" role="group" aria-label="Deine Mission heute">
+      <p class="mission-done">Mission geschafft ✓</p>
+      <div class="mzeilen">${runde}${schreiben}</div>
+    </div>${nachMissionHTML(plan)}`;
   }
+  const knopf = m.rundeOffen
+    ? '<button class="btn go big start" type="button" data-act="start">Start</button>'
+    : `<button class="btn go big start" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">Jetzt schreiben</button>`;
+  const klein = !zwei ? ''
+    : m.rundeOffen && m.schreibOffen ? 'Sind beide ✓, ist deine Mission geschafft. Reihenfolge, wie du magst.'
+    : m.rundeOffen ? 'Noch ①, dann ist deine Mission für heute geschafft.'
+    : 'Noch ②, dann ist deine Mission für heute geschafft.';
+  return `<div class="mission" role="group" aria-labelledby="mission-titel">
+    <div class="eyebrow" id="mission-titel">Deine Mission heute</div>
+    <div class="mzeilen">${runde}${schreiben}</div>
+    ${knopf}
+    ${klein ? `<p class="fineprint">${klein}</p>` : ''}
+  </div>`;
+}
+// Testtag wie bisher: Aufwärmen ist freiwillig, keine Mission, kein Schreibauftrag
+function testtagStartHTML(plan) {
+  const faellig = plan.aDue.length;
+  if (!faellig) return `<p class="mission-done">Für heute erledigt ✓</p>${nachMissionHTML(plan)}`;
+  return `<button class="btn go big start" type="button" data-act="start">Aufwärmen</button>
+    <p class="mission-line"><b>${faellig}</b> fällig · ca. ${minuten(plan.sek)} Min.</p>`;
+}
+// Nach der Mission wie bisher: „Morgen bereit“, Extra-Paket, Freies Üben. Passt heute noch Extra unter den Deckel
+// (das Kind war schneller als geschätzt), steht es hier zum Weitermachen – freiwillig, die Mission ist geschafft.
+function nachMissionHTML(plan) {
   const morgen = morgenBereit();
-  const kurzTag = KURZTAGE.has(today());
-  const extra = extraPaketMoeglich();
+  const extraAuto = plan.testtag ? 0 : plan.eDue.length + plan.eNeu.length;
+  const extra = !extraAuto && extraPaketMoeglich();
   const got = KARTEN.some(c => S.k[c.id]);
-  return `<p class="mission-done">Für heute erledigt ✓</p>
-    ${morgen ? `<p class="mission-line">Morgen bereit: <b>${morgen}</b></p>` : ''}
-    ${kurzTag ? '<p class="fineprint center">Langer Tag, stark durchgezogen. Für heute ist Schluss.</p>' : `
+  return `${morgen ? `<p class="mission-line">Morgen bereit: <b>${morgen}</b></p>` : ''}
+    ${KURZTAGE.has(today()) ? '<p class="fineprint center">Langer Tag, stark durchgezogen. Für heute ist Schluss.</p>' : `
     <div class="two">
+      ${extraAuto ? `<button class="btn" type="button" data-act="start">Extra: ${extraAuto} ${extraAuto === 1 ? 'Trank' : 'Tränke'}</button>` : ''}
       ${extra ? `<button class="btn" type="button" data-act="extra">+1 Paket: ${Math.min(MODELL.extraPaket, extraOffeneKarten().length)} Extra</button>` : ''}
       ${got ? '<button class="btn" type="button" data-act="ueben">Freies Üben</button>' : ''}
     </div>
+    ${extraAuto ? `<p class="fineprint">Noch Zeit für Extra, ca. ${minuten(plan.sek)} Min. Extra zählt nicht für die Ziellinie.</p>` : ''}
     ${extra ? '<p class="fineprint">Ein Paket kostet heute ca. 3 Min., an den 3 Tagen danach je ca. 1 Min. Extra zählt nicht für die Ziellinie.</p>' : ''}
-    ${got ? '<p class="fineprint">Freies Üben füllt nichts. Gewusst zählt morgen, wenn der Trank wieder dran ist.</p>' : ''}`}
-    ${etappen}`;
+    ${got ? '<p class="fineprint">Freies Üben füllt nichts. Gewusst zählt morgen, wenn der Trank wieder dran ist.</p>' : ''}`}`;
 }
 // „+1 Paket“: nur nach fertiger Runde, höchstens einmal am Tag, nicht in den letzten Tagen vor dem Test
 function extraPaketMoeglich() {
@@ -1611,7 +1662,8 @@ function planSlot() {
     return '';
   }
 }
-const DAY_STATE = { fertig: 'Runde fertig', teil: 'geübt, Runde nicht fertig', aus: 'nicht geübt', frei: 'nichts fällig', offen: 'noch offen' };
+// Vorlese-Texte der Tage (Mission = der ganze Tag, Projektleitung 08.11.2026). Der Text der Karte bleibt.
+const DAY_STATE = { fertig: 'Mission geschafft', teil: 'angefangen, Mission noch offen', aus: 'nicht geübt', frei: 'nichts fällig', offen: 'noch offen' };
 // Stufen der Ampel → Ton der Karte: grün Lime, gelb Sonne, rot = „Notfallplan“ in Orange (nie Rot),
 // ohne Test (pause) oder ohne Meldung (unbekannt) neutral grau
 const PLAN_TON = { gruen: 'ok', gelb: 'catch', rot: 'sos' };
@@ -1896,7 +1948,7 @@ function about() {
     <div class="panel prose">
       <h2>Kurz gesagt</h2>
       <ul>
-        <li><b>Jeden Tag deine Runde:</b> Tränke, die dran sind, und neue. Dazu an manchen Tagen ein Schreibauftrag auf Papier.</li>
+        <li><b>Jeden Tag eine Mission:</b> ① die Runde mit deinen Tränken, ② an Schreibtagen ein Schreibauftrag auf Papier. Dazwischen darfst du Pause machen.</li>
         <li><b>Ein Trank steigt höchstens einmal am Tag</b> – und nur, wenn er dran ist. Viel auf einmal bringt nichts, jeden Tag ein bisschen schon.</li>
         <li><b>Blitz-Check:</b> Was du schon kannst, kommt gleich als Stern-Trank ins Regal und ruht bis nach der Schularbeit.</li>
         <li><b>Ziellinie:</b> Sind alle drei Balken über der Linie, bist du bereit. 100 % ist der Bonus.</li>
@@ -1996,7 +2048,12 @@ function startSession(mode, queue) {
   sessionShell();
   next();
 }
-function startRunde() { startSession('runde', rundeAufgaben(tagesPlan())); }
+function startRunde() {
+  const plan = tagesPlan();
+  const vorher = missionHeute(plan).fertig;   // war die Mission schon geschafft (z. B. nur noch Extra), heißt es am Ende „Runde geschafft!“
+  startSession('runde', rundeAufgaben(plan));
+  if (SES) SES.missionVorher = vorher;
+}
 function startExtra() {
   if (!extraPaketMoeglich()) { toast('Heute gibt es kein Extra-Paket mehr.'); return home(); }
   const karten = extraOffeneKarten().slice(0, MODELL.extraPaket);
@@ -2954,10 +3011,17 @@ function summary(s, extra) {
   const vorher = s.zielVorher;
   const neu = meilensteine(z);
   save();
-  const title = s.mode === 'ueben' ? 'Gut geübt!' : s.mode === 'extra' ? 'Extra-Paket geschafft!' : 'Runde geschafft!';
   const morgen = morgenBereit();
   const plan = tagesPlan();
   const si = schreibInfo();
+  // Tagesrunde fertig (nicht am Testtag): Ist ② noch offen, ist erst Etappe 1 von 2 geschafft – das steht gleich unter
+  // der Überschrift, mit dem Weg zum Schreibauftrag, und unten heißt es „Pause“ statt „Fertig“. Kein Konfetti für die
+  // Mission. Freies Üben, Extra-Paket und Testtag wie bisher.
+  const m = missionHeute(plan, si);
+  const tagesrunde = s.mode === 'runde' && !plan.testtag && !m.rundeOffen;
+  const etappe1 = tagesrunde && m.schreibOffen;
+  const title = s.mode === 'ueben' ? 'Gut geübt!' : s.mode === 'extra' ? 'Extra-Paket geschafft!'
+    : etappe1 ? 'Etappe 1 von 2 geschafft!' : tagesrunde && !s.missionVorher ? 'Mission geschafft!' : 'Runde geschafft!';
   const altP = x => (vorher.bereiche.find(y => y.b.id === x.b.id) || { prozent: 0 }).prozent;
   const ueber = z.bereiche.filter(x => x.prozent >= ZIELLINIE && altP(x) < ZIELLINIE);   // in dieser Runde über die Linie
   // Je Trank eine Karte; ein Verb (zwei Formen = zwei Karten) nur einmal, als Doppel-Phiole
@@ -2979,10 +3043,15 @@ function summary(s, extra) {
   else if (neu.bereit) meldung = '<p class="meilenstein gold">BEREIT! Alle drei Balken sind über der Ziellinie. Neuer Titel: Spell Legend.</p>';
   else if (neu.titel) meldung = `<p class="meilenstein">Neuer Titel: ${esc(neu.titel)}.</p>`;
   else if (ueber.length) meldung = `<p class="meilenstein">${esc(ueber[0].b.titel)} ${istSind(ueber[0].b.titel)} über der Ziellinie!</p>`;
-  const offen = s.mode !== 'ueben' && aOffen(plan) === 0 && si.pflichtOffen;
+  const noch2 = etappe1 ? `<div class="panel mission-sum">
+      <p class="mstand"><span class="ok">✓ ① Runde</span> · <span>○ ② Schreiben auf Papier</span></p>
+      <p>Jetzt noch ②: Schreibauftrag „${esc(kurzTitel(si.offen))}“, ca. ${esc(si.offen.minuten || 6)} Min. Dann ist deine Mission für heute geschafft.</p>
+      <div class="two"><button class="btn go" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">Jetzt schreiben</button><button class="btn" type="button" data-act="home">Pause</button></div>
+    </div>` : '';
   app.innerHTML = `
   <section class="screen summary">
     <h1 class="outline hero center">${title}</h1>
+    ${noch2}
     ${meldung}
     <div class="panel zsum">
       <div class="eyebrow">geschafft</div>
@@ -2999,9 +3068,7 @@ function summary(s, extra) {
     ${s.mode !== 'ueben' ? `<p class="lob">${esc(lobFuer(s))}</p>` : ''}
     ${parade(s.ups.map(u => ({ id: u.id })), 'Gestiegen')}
     ${parade(s.collected.filter((id, i, a) => a.indexOf(id) === i).map(id => ({ id })), 'Neu im Regal')}
-    ${offen ? `<div class="panel einsfehlt"><p><b>Eins fehlt noch:</b> Schreibauftrag „${esc(kurzTitel(si.offen))}“ auf Papier, ca. ${esc(si.offen.minuten || 6)} Min.</p>
-      <div class="two"><button class="btn go" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">Jetzt schreiben</button><button class="btn" type="button" data-act="home">Später</button></div></div>` : ''}
-    <button class="btn ${offen ? '' : 'go'} big" type="button" data-act="home">Fertig</button>
+    <button class="btn ${etappe1 ? '' : 'go'} big" type="button" data-act="home">${etappe1 ? 'Pause' : 'Fertig'}</button>
   </section>`;
   // Balken laufen vom alten auf den neuen Stand (bei reduzierter Bewegung gleich der Endstand)
   setTimeout(() => app.querySelectorAll('.zsum [data-ziel]').forEach(i => {
@@ -3026,12 +3093,14 @@ function summary(s, extra) {
 // Kein Foto, kein Text im Handy; an den Server gehen nur Zahlen.
 // S.schreiben.a[auftrag] = { person, start, fertig (geschrieben), haken: [..], selbst (selbst geprüft), dauer (Min.),
 //   rate ('erkannt'|'nicht'), herz: [{ tag, teile: { trank: 'passt'|'nochmal' }, punkt: { trank: Frage } }],
-//   aus (ausgebessert am), ausN (Zahl der Herzeigen-Einträge beim Ausbessern) }
+//   aus (ausgebessert am), ausN (Zahl der Herzeigen-Einträge beim Ausbessern),
+//   passtNicht: [..] (seit dl-v5, parallel zu haken: bedingter Punkt „passt hier nicht“; fehlt in älteren Ständen) }
+// haken und passtNicht hängen am Index der Checkliste: Die Zahl der Punkte je Teil darf sich darum nie ändern.
 // S.schreiben.t[trank] = { lv (0–3), passt: [Tage mit „Passt“] }
 // ================================================================
 let SW = null;   // laufender Schreibauftrag { a, schritt, fragen }
 function aStand(a) { return S.schreiben.a[a.id] || null; }
-function aStandNeu(a) { return (S.schreiben.a[a.id] = S.schreiben.a[a.id] || { person: '', start: '', fertig: '', haken: [], selbst: '', herz: [], aus: '' }); }
+function aStandNeu(a) { return (S.schreiben.a[a.id] = S.schreiben.a[a.id] || { person: '', start: '', fertig: '', haken: [], passtNicht: [], selbst: '', herz: [], aus: '' }); }
 function kurzTitel(a) {
   if (!a) return '';
   const t = String(a.titel || '');
@@ -3060,30 +3129,25 @@ function schreibInfo() {
   const heuteGeprueft = AUFTRAEGE.filter(a => (aStand(a) || {}).selbst === t);
   return {
     offen: offen[0] || null,
-    pflichtOffen: !!offen[0] && !heuteGeprueft.length && !istTesttag(),   // ein Schreibauftrag am Tag zählt für „Runde fertig“
+    pflichtOffen: !!offen[0] && !heuteGeprueft.length && !istTesttag(),   // ein Schreibauftrag am Tag zählt für die Mission
     heuteGeprueft,
     herz: AUFTRAEGE.filter(a => herzOffen(aStand(a))),
     aus: AUFTRAEGE.filter(a => ausOffen(aStand(a)))
   };
 }
-// Etappe 2 auf der Startseite
+// Unter dem Kasten „Deine Mission heute“, ohne Nummer und ohne ○: Herzeigen und Ausbessern gehören nicht zur
+// Mission. Dazu wie bisher ein Schreibauftrag, der heute nicht mehr Pflicht ist (heute schon einer geprüft, etwa
+// beim Nachholen): freiwillig, damit das Kind aufholen kann.
 function schreibPanelHTML(plan) {
   if (!AUFTRAEGE.length) return '';
   const si = schreibInfo();
   const teile = [];
-  if (si.offen) {
-    const st = aStand(si.offen);
-    const begonnen = st && st.start;
-    const fuerHeute = si.pflichtOffen;
-    teile.push(`<div class="sw-auftrag">
-      <div class="eyebrow">${fuerHeute ? 'Etappe 2 · auf Papier' : 'Nächster Schreibauftrag'}</div>
-      <h3>${esc(si.offen.titel)}</h3>
-      <p class="fineprint">${fuerHeute ? `ca. ${esc(si.offen.minuten || 6)} Min. · mit Füllfeder` : `Kommt ${si.offen.ab > today() ? 'ab ' + esc(dateShort(si.offen.ab)) : 'morgen'} dran – du darfst ihn aber auch jetzt schon schreiben.`}</p>
-      <button class="btn ${fuerHeute ? 'go' : ''}" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">${begonnen ? 'Weiterschreiben' : fuerHeute ? 'Jetzt schreiben' : 'Jetzt schon schreiben'}</button>
-    </div>`);
-  } else if (si.heuteGeprueft.length) teile.push('<p class="sw-ok">✓ Schreibauftrag für heute erledigt</p>');
-  for (const a of si.aus) teile.push(`<button class="btn" type="button" data-act="ausbessern" data-id="${esc(a.id)}">✏️ Ausbessern: „${esc(kurzTitel(a))}“ · ca. 3 Min.</button>`);
-  for (const a of si.herz) teile.push(`<button class="btn" type="button" data-act="herzeigen" data-id="${esc(a.id)}">👀 Herzeigen: „${esc(kurzTitel(a))}“</button>`);
+  for (const a of si.herz) teile.push(`<button class="btn neben" type="button" data-act="herzeigen" data-id="${esc(a.id)}"><b>Herzeigen:</b> „${esc(kurzTitel(a))}“ · dein Blatt für Mama oder Papa, 1 Min.</button>`);
+  for (const a of si.aus) teile.push(`<button class="btn neben" type="button" data-act="ausbessern" data-id="${esc(a.id)}"><b>Ausbessern:</b> „${esc(kurzTitel(a))}“ · ca. 3 Min.</button>`);
+  if (si.offen && !si.pflichtOffen) {
+    const begonnen = (aStand(si.offen) || {}).start;
+    teile.push(`<button class="btn neben" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}"><b>${begonnen ? 'Weiterschreiben' : 'Nächster Schreibauftrag'}:</b> „${esc(kurzTitel(si.offen))}“ · du darfst ihn auch jetzt schon schreiben</button>`);
+  }
   if (!teile.length) return '';
   return `<div class="panel schreib-panel">${teile.join('')}</div>`;
 }
@@ -3146,10 +3210,23 @@ function bausteineHTML(a) {
   if (!alle.length) return '';
   return `<details class="bausteine"><summary>Satzanfänge zum Ansehen</summary><ul>${alle.map(x => `<li>${esc(x.b)}</li>`).join('')}</ul></details>`;
 }
+// Bedingte Punkte (fachdidaktik, 08.11.2026): Text beginnt mit „wenn es passt:“. Sie brauchen eine Entscheidung –
+// ✓ oder „passt hier nicht“ (z. B. keine Brille, nichts in der Hand). Pflichtpunkte brauchen wie bisher ✓.
+const BEDINGT = /^wenn es passt:/i;
 function checklisteFuer(a) {
-  const teile = a.traenke.flatMap(id => (teilInfo(id).checkliste || []).map(text => ({ text, teil: a.ganz ? TRANK[id].titel : '' })));
-  const ganz = a.ganz && SCHREIBEN.ganzerText && Array.isArray(SCHREIBEN.ganzerText.checkliste) ? SCHREIBEN.ganzerText.checkliste.map(text => ({ text, teil: 'ganzer Text' })) : [];
+  const punkt = teil => text => ({ text, teil, bedingt: BEDINGT.test(String(text)) });
+  const teile = a.traenke.flatMap(id => (teilInfo(id).checkliste || []).map(punkt(a.ganz ? TRANK[id].titel : '')));
+  const ganz = a.ganz && SCHREIBEN.ganzerText && Array.isArray(SCHREIBEN.ganzerText.checkliste) ? SCHREIBEN.ganzerText.checkliste.map(punkt('ganzer Text')) : [];
   return [...teile, ...ganz];
+}
+// haken und passtNicht auf die Länge der Liste bringen (ältere Stände haben kein passtNicht)
+function checkStand(st, liste) {
+  if (!Array.isArray(st.haken) || st.haken.length !== liste.length) st.haken = liste.map((_, i) => !!(st.haken || [])[i]);
+  if (!Array.isArray(st.passtNicht) || st.passtNicht.length !== liste.length) st.passtNicht = liste.map((_, i) => !!(st.passtNicht || [])[i]);
+}
+// „Fertig geprüft“ geht, wenn jeder Pflichtpunkt ✓ hat und jeder bedingte ✓ oder „passt hier nicht“
+function checklisteFertig(st, liste) {
+  return liste.every((x, i) => !!st.haken[i] || (x.bedingt && !!st.passtNicht[i]));
 }
 function wsKnopf(a, phase) {
   // Wortspeicher: bei 1a–1d offen, im ganzen Text nur zum Überarbeiten, in der Probe zu
@@ -3183,14 +3260,18 @@ function schreibZeigen() {
       <button class="btn go big" type="button" data-act="swFertig">Fertig geschrieben</button>`;
   } else if (SW.schritt === 'pruefen') {
     const liste = checklisteFuer(a);
-    if (!Array.isArray(st.haken) || st.haken.length !== liste.length) st.haken = liste.map((_, i) => !!(st.haken || [])[i]);
-    const alle = st.haken.every(Boolean);
+    checkStand(st, liste);
+    const alle = checklisteFertig(st, liste);
     let gruppe = '';
     body = `${st.dauer ? `<p class="sw-dauer">Du hast ${st.dauer} Minuten gebraucht.</p>` : ''}
       <div class="panel"><h3 class="sw-frage">Selbst prüfen</h3><p>Lies deinen Text halblaut und hak ab, was stimmt. Fehlt was, bessere es am Blatt aus.</p>
+      ${liste.some(x => x.bedingt) ? '<p class="pbedingt-hinweis">„Wenn es passt“ heißt: wenn deine Person das hat oder man es sieht. Sonst tipp auf „passt hier nicht“.</p>' : ''}
       <div class="pchecks">${liste.map((x, i) => {
         const kopfzeile = x.teil && x.teil !== gruppe ? `<p class="pgruppe">${esc(gruppe = x.teil)}</p>` : '';
-        return `${kopfzeile}<button type="button" class="pcheck ${st.haken[i] ? 'on' : ''}" data-act="ptick" data-i="${i}" aria-pressed="${st.haken[i]}"><i aria-hidden="true"></i><span>${fmtText(x.text)}</span></button>`;
+        const nicht = x.bedingt && st.passtNicht[i];
+        const haken = `<button type="button" class="pcheck${x.bedingt ? ' bedingt' : ''}${st.haken[i] ? ' on' : ''}${nicht ? ' nicht' : ''}" data-act="ptick" data-i="${i}" aria-pressed="${st.haken[i]}"><i aria-hidden="true"></i><span>${fmtText(x.text)}</span></button>`;
+        if (!x.bedingt) return kopfzeile + haken;
+        return `${kopfzeile}<div class="pbedingt">${haken}<button type="button" class="pnicht${nicht ? ' on' : ''}" data-act="pnicht" data-i="${i}" aria-pressed="${!!nicht}">passt hier nicht</button></div>`;
       }).join('')}</div>
       <div class="two">${wsKnopf(a, 'pruefen')}</div></div>
       <button class="btn go big" type="button" data-act="swGeprueft" ${alle ? '' : 'disabled'}>Fertig geprüft</button>
@@ -3202,8 +3283,13 @@ function schreibZeigen() {
       <button class="link center" type="button" data-act="rate" data-v="">Gerade niemand da – später</button>`;
   } else if (SW.schritt === 'drittel') {
     const lv = a.traenke.map(id => trankStufe(id));
+    // Was von der Mission noch fehlt (am Testtag gibt es keine Mission)
+    const m = istTesttag() ? null : missionHeute();
+    const mission = !m ? '' : m.rundeOffen ? '<p class="sw-mission">Noch ① Runde, dann ist deine Mission geschafft.</p>'
+      : '<p class="sw-mission"><b>Mission geschafft ✓</b> Für heute ist alles drin.</p>';
     body = `<div class="panel sw-drittel"><div class="sw-traenke">${a.traenke.map((id, i) => `<span>${trankHTML(lv[i], { feder: true, gross: true, neu: true })}<small>${esc(TRANK[id].titel)}</small></span>`).join('')}</div>
       <p class="ruhe-gross">${a.traenke.length === 1 ? `Trank „${esc(TRANK[a.traenke[0]].titel)}“ ist zu einem Drittel voll!` : 'Selbst geprüft – stark!'}</p>
+      ${mission}
       ${st.rate === 'erkannt' ? '<p>Erkannt! Deine Beschreibung funktioniert.</p>' : st.rate === 'nicht' ? '<p>Nicht erkannt. Welches Detail hätte geholfen? Schreib einen Satz dazu.</p>' : ''}
       <p>Zeig dein Blatt jetzt Mama oder Papa. Das geht auch später.</p></div>
       <div class="two"><button class="btn go" type="button" data-act="herzeigen" data-id="${esc(a.id)}">Jetzt herzeigen</button><button class="btn" type="button" data-act="swSpaeter">Später herzeigen</button></div>`;
@@ -3235,12 +3321,24 @@ function swFertig() {
 }
 function swTick(b) {
   const st = aStandNeu(SW.a), i = +b.dataset.i;
+  checkStand(st, checklisteFuer(SW.a));
   st.haken[i] = !st.haken[i];
+  if (st.haken[i]) st.passtNicht[i] = false;   // ✓ und „passt hier nicht“ schließen sich aus
   save();
   if (st.haken[i]) { sfx('tap'); haptic(); }
   schreibZeigen();
 }
-// Alles abgehakt → selbst geprüft: Trank ⅓ (zählt für „Runde fertig“)
+// Bedingter Punkt: „passt hier nicht“ (an/aus). Nur bei Punkten, die mit „wenn es passt:“ beginnen.
+function swNicht(b) {
+  const st = aStandNeu(SW.a), i = +b.dataset.i, liste = checklisteFuer(SW.a);
+  if (!liste[i] || !liste[i].bedingt) return;
+  checkStand(st, liste);
+  st.passtNicht[i] = !st.passtNicht[i];
+  if (st.passtNicht[i]) { st.haken[i] = false; sfx('tap'); }
+  save();
+  schreibZeigen();
+}
+// Alles abgehakt → selbst geprüft: Trank ⅓ (zählt für die Mission)
 function selbstVerbuchen(a) {
   const st = aStandNeu(a);
   if (!st.selbst) st.selbst = today();
@@ -3250,12 +3348,13 @@ function selbstVerbuchen(a) {
   }
 }
 function swGeprueft() {
-  const a = SW.a, st = aStandNeu(a);
-  if (!st.haken.every(Boolean)) return;
+  const a = SW.a, st = aStandNeu(a), liste = checklisteFuer(a);
+  checkStand(st, liste);
+  if (!checklisteFertig(st, liste)) return;
   selbstVerbuchen(a);
   save();
   sfx('blub');
-  afterRound();   // Runde vielleicht jetzt fertig: melden
+  afterRound();   // Mission vielleicht jetzt fertig: melden
   SW.schritt = a.rateSpiel && !st.rate ? 'rate' : 'drittel';
   schreibZeigen();
 }
@@ -3438,9 +3537,13 @@ function goalText(test) {
 // Die Ampel rechnet den Blitz-Check (vorwissen) erst mit der neuen legends-status.js. Mit einer älteren Kopie
 // (z. B. halbes Update ohne Netz) melden wir keinen Termin – sonst zeigte die Ampel ab Tag 1 zu Unrecht Rot.
 function ampelKenntVorwissen() { return !!(STATUS && STATUS.STANDARD && 'vorwissen' in STATUS.STANDARD); }
-// Ziel-Karte für die Eltern-App: nur Zahlen, Wahrheitswerte und die Namen der Balken (nichts über das Kind)
+// Ziel-Karte für die Eltern-App: nur Zahlen, Wahrheitswerte und die Namen der Balken (nichts über das Kind).
+// Seit dl-v5 dazu der Schreibauftrag von heute, damit Legends HQ sagen kann, was von der Mission fehlt:
+// offen (0/1, steckt schon in heuteOffen.neu), erledigt (0/1: heute einer selbst geprüft), herzeigen (Texte, die
+// aufs Herzeigen warten). Am Testtag ist nichts offen.
 function fortschrittBericht() {
   const z = zielStand();
+  const si = schreibInfo();
   let gefragt = 0, gewusst = 0;
   for (const c of KARTEN) {
     const st = S.k[c.id];
@@ -3451,7 +3554,9 @@ function fortschrittBericht() {
   return {
     prozent: z.prozent, bereit: z.bereit, perfekt: z.perfekt,
     balken: z.bereiche.map(x => ({ id: x.b.id, titel: x.b.titel, prozent: x.prozent })),
-    schreiben: schreibZahlen(),
+    schreiben: Object.assign(schreibZahlen(), {
+      offen: si.pflichtOffen ? 1 : 0, erledigt: si.heuteGeprueft.length ? 1 : 0, herzeigen: si.herz.length
+    }),
     check: { gefragt, gewusst }
   };
 }
@@ -3473,8 +3578,8 @@ function berichtEingabe() {
       return { lv: st.lv, due: effDue(c), last: st.last, since: st.since, imZiel: imZiel(c), label: c.label, ok: st.ok, bad: st.bad };
     }),
     neuOffen: { ziel: unseen.filter(imZiel).length, gesamt: unseen.length },
-    // „Runde fertig“ = A des Tages fertig und Schreibauftrag selbst geprüft; der Schreibauftrag zählt als eine neue
-    // Aufgabe. Am Testtag ist Aufwärmen freiwillig – nichts ist offen.
+    // „Mission fertig“ = A des Tages fertig und Schreibauftrag selbst geprüft; der Schreibauftrag zählt als eine neue
+    // Aufgabe (fortschritt.schreiben.offen sagt, ob er dabei ist). Am Testtag ist Aufwärmen freiwillig – nichts offen.
     heuteOffen: plan.testtag ? { faellig: 0, neu: 0 } : { faellig: plan.aDue.length, neu: plan.aNeu.length + (si.pflichtOffen ? 1 : 0) },
     regeln: Object.assign({}, MODELL.ampel),
     fortschritt: fortschrittBericht(),
@@ -3483,7 +3588,7 @@ function berichtEingabe() {
   };
 }
 
-// Ende einer Runde (oder eines Schreibauftrags): den Tag ins Protokoll schreiben (Runde fertig?), dann melden und
+// Ende einer Runde (oder eines Schreibauftrags): den Tag ins Protokoll schreiben (Mission fertig?), dann melden und
 // sichern. Kurz warten, damit zuerst die Zusammenfassung erscheint. Ein Timer läuft auch, wenn die Seite verdeckt ist.
 function afterRound() {
   if (!STATUS) return;
@@ -3663,6 +3768,7 @@ const ACT = {
   swSchreiben: () => swSchreiben(),
   swFertig: () => swFertig(),
   ptick: b => swTick(b),
+  pnicht: b => swNicht(b),
   swGeprueft: () => swGeprueft(),
   rate: b => swRate(b.dataset.v),
   swSpaeter: () => home(),
@@ -3742,7 +3848,10 @@ window.DL = {
   // Tagesmenge von heute (so, wie die Startseite sie rechnet)
   tag() {
     const p = tagesPlan(), si = schreibInfo(), z = zielStand();
+    const m = missionHeute(p, si);
     return {
+      mission: p.testtag ? 'Testtag (keine Mission)' : `${m.rundeOffen ? '○' : '✓'} Runde${m.schreibTag ? ` · ${m.schreibOffen ? '○' : '✓'} Schreiben` : ''}${m.fertig ? (m.getan ? ' · geschafft' : ' · nichts fällig') : ''}`,
+      herzeigen: si.herz.map(a => a.id), ausbessern: si.aus.map(a => a.id),
       tag: today(), wochentag: DAY_SHORT[weekdayOf(today())], testIn: testIn(), endspurt: istEndspurt(), testtag: p.testtag,
       faelligA: p.aDue.length, verben: p.verben.length, neuA: p.aNeu.length, faelligExtra: p.eDue.length, neuExtra: p.eNeu.length,
       merk: p.merk.map(x => x.id), minA: r1(p.sekA / 60), min: r1(p.sek / 60), deckel: deckelHeute(), schonMin: r1(heuteSek() / 60),

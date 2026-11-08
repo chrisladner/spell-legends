@@ -107,7 +107,7 @@ window.STOFF = {
   pakete: [
     // ---- Ziel: zählt für Ziel-Karte, Ampel und 100 % (ab = frühester Tag, lernmodell 4) ----
     { id: 'pb-teil', bereich: 'pb', titel: 'Aufbau: Satz → Teil', rolle: 'ziel', ab: '2026-11-08', check: 'regel', quelle: '4a–7a; Sätze eigenes (Herr Brummer, Anhang B)',
-      regel: '<p><b>So baust du eine Personenbeschreibung</b></p><ul><li><b>Einleitung:</b> Wer ist das? Name oder Beruf, Alter, Größe, Figur.</li><li><b>Hauptteil 1:</b> Kopf und Gesicht, von oben nach unten.</li><li><b>Hauptteil 2:</b> Kleidung von oben nach unten bis zu den Schuhen, dazu, was die Person in der Hand hält.</li><li><b>Schluss:</b> kurz. Was fällt besonders auf? Wie wirkt die Person auf dich?</li></ul><p>Schreib in der Gegenwart (Präsens): sie trägt. Beschreib nur, was man sieht. Deine Meinung kommt in den Schluss.</p>' },
+      regel: '<p><b>So baust du eine Personenbeschreibung</b></p><ul><li><b>Einleitung:</b> Wer ist das? Name oder Beruf, Alter, Größe, Figur.</li><li><b>Hauptteil 1:</b> Kopf und Gesicht, von oben nach unten.</li><li><b>Hauptteil 2:</b> Kleidung von oben nach unten bis zu den Schuhen, dazu, was die Person in der Hand hält (wenn sie etwas hält).</li><li><b>Schluss:</b> kurz. Was fällt besonders auf? Wie wirkt die Person auf dich?</li></ul><p>Schreib in der Gegenwart (Präsens): sie trägt. Beschreib nur, was man sieht. Deine Meinung kommt in den Schluss.</p>' },
     { id: 'pb-folge', bereich: 'pb', titel: 'Reihenfolge', rolle: 'ziel', ab: '2026-11-08', check: 'einzel', quelle: '5a, 6a; pb-folge-4 eigenes (Zauberer Balduin)' },
     { id: 'v', bereich: 'verben', titel: 'Unregelmäßige Verben', rolle: 'ziel', ab: '2026-11-08', check: 'einzel', quelle: 'V-BN, V-RZ (alle 98 Verben)',
       regel: '<p><b>Drei Formen auf dem Blatt:</b></p><table class="gtable formen"><tr><td>Nennform<br><i>Infinitiv</i></td><td>sinken</td></tr><tr><td>Mitvergangenheit<br><i>Präteritum</i></td><td>er sank</td></tr><tr><td>Vergangenheit<br><i>Perfekt</i></td><td>er ist gesunken</td></tr></table><p>Unregelmäßig heißt: Die Formen ändern sich, meist der Selbstlaut. Darum lernst du die Reihe auswendig und sagst sie halblaut: sinken – sank – gesunken.</p><p><b>hat oder ist?</b> Mit <b>ist</b>: wenn sich jemand von einem Ort zum anderen bewegt oder wenn sich etwas verändert. Dazu sein und bleiben. Fast alle anderen Zeitwörter: <b>hat</b>.</p>' },
@@ -1199,26 +1199,26 @@ window.STOFF = {
       'pb-trank-ein': {
         bauplan: ['Wer (Name oder Beruf)', 'Alter', 'Größe', 'Figur', 'wenn es passt: Hautfarbe'],
         bausteine: ['Bei der Person, die ich beschreibe, handelt es sich um …', '… ist … Jahre alt und ungefähr … m groß.', 'Die …-jährige … ist schlank / kräftig / sportlich.', 'Sie / Er ist hellhäutig.'],
-        checkliste: ['Wer ist es: Name oder Beruf (gern mit „Bei der Person, die ich beschreibe, handelt es sich um …“)', 'Alter', 'Größe', 'Figur', 'wenn es passt: Hautfarbe'],
+        checkliste: ['Wer ist es: Name oder Beruf, sonst Frau, Mann, Mädchen oder Bub (gern mit „Bei der Person, die ich beschreibe, handelt es sich um …“)', 'Alter', 'Größe', 'Figur', 'wenn es passt: Hautfarbe'],
         herzeigen: ['Wer es ist: Name oder Beruf?', 'Alter, Größe und Figur?', 'Alles in der Gegenwart (Präsens): sie trägt, er hält?']
       },
       'pb-trank-kopf': {
-        bauplan: ['Kopfbedeckung', 'Haare (Farbe, Frisur)', 'Stirn, Augenbrauen, Augen', 'Nase', 'Mund', 'Ohren', 'Hals'],
+        bauplan: ['wenn es passt: Kopfbedeckung', 'Haare (Farbe, Frisur)', 'Stirn, Augenbrauen, Augen', 'Nase', 'Mund', 'Ohren', 'Hals'],
         bausteine: ['Ihre / Seine … Haare sind …', '… umrahmen ihr Gesicht.', 'Unter der … Stirn wachsen … Augenbrauen.', 'Hinter der Brille blitzen …', 'In der Mitte des Gesichts sitzt eine … Nase.', 'An den Ohren baumeln …', 'Um den Hals trägt sie …', 'Zeitwörter statt hat und ist: tragen · anhaben · sitzen · umrahmen · fallen · reichen (bis) · wachsen · funkeln · leuchten · blitzen · strahlen · schmücken · baumeln · bedecken · stecken (in) · halten · wirken · aussehen'],
-        checkliste: ['von oben nach unten: Kopfbedeckung → Haare (Farbe, Frisur) → Stirn, Augenbrauen, Augen → Nase → Mund → Ohren → Hals', 'Brille und Schmuck dort, wo sie sind (Ohrringe an den Ohren, Kette am Hals)', 'zu jedem Teil ein genaues Wiewort'],
+        checkliste: ['von oben nach unten, was man sieht: Kopfbedeckung → Haare (Farbe, Frisur) → Stirn, Augenbrauen, Augen → Nase → Mund → Ohren → Hals', 'wenn es passt: Brille und Schmuck dort, wo sie sind (Ohrringe an den Ohren, Kette am Hals)', 'zu jedem Teil ein genaues Wiewort'],
         herzeigen: ['Von oben nach unten, von den Haaren bis zum Hals?', 'Zu jedem Teil ein genaues Wiewort (buschige Augenbrauen, spitze Nase)?', 'Nur, was man sieht, ohne eigene Meinung?']
       },
       'pb-trank-kleid': {
-        bauplan: ['Oberkörper', 'Unterkörper', 'Socken und Schuhe', 'was die Person in der Hand hält'],
+        bauplan: ['Oberkörper', 'Unterkörper', 'Socken und Schuhe', 'wenn es passt: was die Person in der Hand oder unter dem Arm hält'],
         bausteine: ['Über … trägt sie …', 'Dazu trägt er …', 'Ihre Beine stecken in …', 'An den Füßen trägt …', 'In der Hand hält …', 'Zeitwörter statt hat und ist: tragen · anhaben · sitzen · umrahmen · fallen · reichen (bis) · wachsen · funkeln · leuchten · blitzen · strahlen · schmücken · baumeln · bedecken · stecken (in) · halten · wirken · aussehen'],
-        checkliste: ['von oben nach unten: Oberkörper → Unterkörper → Socken und Schuhe', 'bei jedem Stück Farbe oder Wiewort', 'was die Person in der Hand hält', 'nicht dreimal „sie hat“'],
+        checkliste: ['von oben nach unten, was man sieht: Oberkörper → Unterkörper → Socken und Schuhe', 'bei jedem Stück Farbe oder Wiewort', 'wenn es passt: was die Person in der Hand oder unter dem Arm hält', 'nicht dreimal „sie hat“'],
         herzeigen: ['Von oben nach unten bis zu den Schuhen?', 'Bei jedem Stück eine Farbe oder ein Wiewort?', 'Verschiedene Zeitwörter statt immer „hat“ (trägt, steckt, hält)?']
       },
       'pb-trank-schluss': {
         bauplan: ['besonderes Kennzeichen', 'Wirkung'],
         bausteine: ['Besonders auffällig an ihr / ihm ist …', 'Man erkennt sie / ihn sofort an …', 'Sie / Er wirkt auf mich …', 'Wie wirkt die Person? ernst · freundlich · fröhlich · geheimnisvoll · gemütlich · hilfsbereit · lustig · mutig · schlau · schüchtern · streng · ungeduldig · zornig'],
-        checkliste: ['kurz', 'ein besonderes Kennzeichen („Besonders auffällig an ihr ist …“)', 'die Wirkung („Sie wirkt auf mich …“)'],
-        herzeigen: ['Ein besonderes Kennzeichen (z. B. Narbe, Tattoo)?', 'Die Wirkung (z. B. freundlich, streng)?', 'Kurz, zwei bis drei Sätze?']
+        checkliste: ['kurz', 'ein besonderes Kennzeichen oder was am meisten auffällt („Besonders auffällig an ihr ist …“)', 'die Wirkung („Sie wirkt auf mich …“)'],
+        herzeigen: ['Ein besonderes Kennzeichen (z. B. Narbe, Tattoo, Zahnlücke)?', 'Die Wirkung (z. B. freundlich, streng)?', 'Kurz, zwei bis drei Sätze?']
       }
     },
     ganzerText: { checkliste: ['Gegenwart (Präsens)', 'mindestens 5 verschiedene Zeitwörter statt hat und ist', 'nur beschreiben, was man sieht; die Meinung kommt in den Schluss', 'Hauptwörter groß, Wiewörter und Zeitwörter klein', 'Punkt am Satzende; kein Beistrich zwischen „Wer?“ und Zeitwort (Die nette Frau hilft …)', 'Überschrift'] },
@@ -1228,7 +1228,7 @@ window.STOFF = {
       { id: 'pb-papier-1b', ab: '2026-11-09', traenke: ['pb-trank-kopf'], titel: 'Schreibauftrag 2 von 4: Kopf und Gesicht', minuten: 6, wortspeicher: 'offen',
         text: 'Heute kommen Kopf und Gesicht dran, von oben nach unten. Am besten dieselbe Person wie gestern, dann wird es in vier Tagen ein ganzer Text.' },
       { id: 'pb-papier-1c', ab: '2026-11-10', traenke: ['pb-trank-kleid'], titel: 'Schreibauftrag 3 von 4: Kleidung', minuten: 6, wortspeicher: 'offen',
-        text: 'Heute die Kleidung, von oben nach unten bis zu den Schuhen, und was die Person in der Hand hält.' },
+        text: 'Heute die Kleidung, von oben nach unten bis zu den Schuhen, und was die Person in der Hand hält (wenn sie etwas hält).' },
       { id: 'pb-papier-1d', ab: '2026-11-11', traenke: ['pb-trank-schluss'], titel: 'Schreibauftrag 4 von 4: Schluss', minuten: 6, wortspeicher: 'offen',
         text: 'Heute der Schluss: kurz, mit einem besonderen Kennzeichen und wie die Person auf dich wirkt.' },
       { id: 'pb-papier-2', ab: '2026-11-12', traenke: ['pb-trank-ein', 'pb-trank-kopf', 'pb-trank-kleid', 'pb-trank-schluss'], titel: 'Ganzer Text: Wen beschreibe ich?', ganz: true, wortspeicher: 'ueberarbeiten', person: 'balduin', minuten: 30, rateSpiel: true,
@@ -1278,7 +1278,7 @@ window.STOFF = {
   // ================================================================
   zauberbuch: [
     { id: 'zb-pb-aufbau', pakete: ['pb-teil'], titel: 'So baust du eine Personenbeschreibung',
-      html: '<ul><li><b>Einleitung:</b> Wer ist das? Name oder Beruf, Alter, Größe, Figur.</li><li><b>Hauptteil 1:</b> Kopf und Gesicht, von oben nach unten.</li><li><b>Hauptteil 2:</b> Kleidung von oben nach unten bis zu den Schuhen, dazu, was die Person in der Hand hält.</li><li><b>Schluss:</b> kurz. Was fällt besonders auf? Wie wirkt die Person auf dich?</li></ul><p>Schreib in der Gegenwart (Präsens): sie trägt. Beschreib nur, was man sieht. Deine Meinung kommt in den Schluss.</p>' },
+      html: '<ul><li><b>Einleitung:</b> Wer ist das? Name oder Beruf, Alter, Größe, Figur.</li><li><b>Hauptteil 1:</b> Kopf und Gesicht, von oben nach unten.</li><li><b>Hauptteil 2:</b> Kleidung von oben nach unten bis zu den Schuhen, dazu, was die Person in der Hand hält (wenn sie etwas hält).</li><li><b>Schluss:</b> kurz. Was fällt besonders auf? Wie wirkt die Person auf dich?</li></ul><p>Schreib in der Gegenwart (Präsens): sie trägt. Beschreib nur, was man sieht. Deine Meinung kommt in den Schluss.</p>' },
     { id: 'zb-v-formen', pakete: ['v', 'fb-kern'], titel: 'Drei Formen auf dem Blatt',
       html: '<table class="gtable formen"><tr><td>Nennform<br><i>Infinitiv</i></td><td>sinken</td></tr><tr><td>Mitvergangenheit<br><i>Präteritum</i></td><td>er sank</td></tr><tr><td>Vergangenheit<br><i>Perfekt</i></td><td>er ist gesunken</td></tr></table><p>Unregelmäßig heißt: Die Formen ändern sich, meist der Selbstlaut. Darum lernst du die Reihe auswendig und sagst sie halblaut: sinken – sank – gesunken.</p>' },
     { id: 'zb-v-hat-ist', pakete: ['v'], titel: 'hat oder ist?',

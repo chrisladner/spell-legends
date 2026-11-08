@@ -8,8 +8,12 @@ sobald sie einmal geöffnet wurde. Gerüst nach Word Legends (`wl-v6`).
 „Spell“ heißt Zauberspruch und buchstabieren. Die internen Kennungen bleiben `dl` (`deutschlegends.v1`, `DL1:`,
 Cache `dl-…`): Sie benennen das Fach, daran hängt der Fortschritt – nie ändern.
 
-**Stand `dl-v4`** (`dl-v2` = erste veröffentlichte Version, 07.11.2026; `dl-v3`: Regelkarten mit Formen untereinander, Abfrage passt über die Tastatur; `dl-v4`: Tage vor dem Plan-Start zählen nie als ausgelassen). Grundlage:
-`auftraege/2026-11-07_deutsch-app.md` (Abschnitt 5) und `auftraege/2026-11-07_deutsch-app/bauauftrag.md`.
+**Stand `dl-v5`** (`dl-v2` = erste veröffentlichte Version, 07.11.2026; `dl-v3`: Regelkarten mit Formen untereinander,
+Abfrage passt über die Tastatur; `dl-v4`: Tage vor dem Plan-Start zählen nie als ausgelassen, Merker `vs` im Protokoll;
+`dl-v5`: klarer Tagesauftrag – Kasten „Deine Mission heute“ mit ① Runde und ② Schreiben, Rundenende „Etappe 1 von 2“,
+bedingte Punkte in der Checkliste, Bericht sagt Legends HQ, was heute offen ist). Grundlage:
+`auftraege/2026-11-07_deutsch-app.md` (Abschnitt 5, Entscheidung „Klarer Tagesauftrag“ vom 08.11.2026) und
+`auftraege/2026-11-07_deutsch-app/bauauftrag.md`.
 
 ## Aufs iPhone
 
@@ -33,7 +37,7 @@ Alle Zahlen stehen in `MODELL` oben in `app.js`.
 | Verb-Check | Tabellenzeile Nennform → Mitvergangenheit · hat/ist + 2. Mittelwort, jede Form ist eine eigene Karte. An den Check-Tagen (`verbCheck.tage`) offene ÷ verbleibende Tage; höchstens 4 je Familie (fairer Anteil je Familie), `nichtZusammen` nie am selben Tag. Was nach dem letzten Check-Tag offen ist, kommt am nächsten Tag |
 | Ziel-Pakete | neu am `ab`-Tag oder danach, ganz, mit Merkkarte; verpasste Tage holen nach. Wer vor dem ersten Plan-Tag öffnet, bekommt dessen Inhalt schon |
 | Tagesablauf | 1 fällige A (wackeligste zuerst) · 2 neue A (Verb-Check zuerst) · 3 fällige Extra · 4 neue Extra. **A wird immer fertig**; der Deckel (20 Min., an Tagen mit ganzem Text 12) stoppt nur 3 und 4. Wiederholungen höchstens 50 (gekürzt wird nur Extra). Höchstens 3 Karten desselben Themas hintereinander |
-| Runde fertig | A des Tages fertig und Schreibauftrag des Tages selbst geprüft (Herzeigen darf später kommen) |
+| Mission (seit `dl-v5`, vorher „Runde fertig“) | ① Runde = A des Tages fertig, ② an Schreibtagen der Schreibauftrag des Tages selbst geprüft (Herzeigen und Ausbessern gehören nicht dazu). „Runde“ heißt nur noch die Karten-Runde. Am Testtag keine Mission |
 | Extra-Regal | neue Extra-Karten in `rang`-Reihenfolge, automatisch, wenn unter dem Deckel Zeit bleibt; „+1 Paket“ = die nächsten 8, höchstens 1 pro Tag, nur nach fertiger Runde, nicht in den letzten 3 Tagen |
 | Endspurt (Sa–Mo) | Karten ohne Stern, seit Test − 4 nicht gewusst: Stufe ≥ 3 einmal an Sa, So oder Mo (nach Kartennummer), Stufe ≤ 2 spätestens Mo. Sterne ruhen |
 | Testtag | freiwillig aufwärmen, höchstens 10 Karten, nichts Neues |
@@ -56,6 +60,22 @@ Alle Zahlen stehen in `MODELL` oben in `app.js`.
 - Zauberbuch, Tab Regeln: Ein Eintrag ist erst lesbar, wenn alle seine `pakete` begonnen haben (Merkkarte gelesen
   oder eine Karte im Regal); vorher nur der Titel, ausgegraut. So steht keine Antwort vor ihrem Blitz-Check im Buch.
 
+## Deine Mission heute (seit `dl-v5`)
+
+Anlass: Am 08.11.2026 hielt sich das Kind nach der Karten-Runde für fertig („Runde geschafft!“, großer Knopf „Fertig“, der
+Schreibauftrag stand unter dem Falz). Texte von `motivation-spiel`, Entscheidungen der Projektleitung. Logik: `missionHeute()`.
+
+| Stelle | Verhalten |
+|---|---|
+| Startseite, unten in der Ziel-Karte | Kasten **Deine Mission heute**: `○ ① Runde · 12 fällig · 8 neu · ca. 15 Min.` (am 1. Tag statt der Zahlen „Blitz-Check: Welche Verben kannst du schon?“), `○ ② Schreiben auf Papier · „Einleitung“ · ca. 6 Min.` Offene Zeilen sind antippbar, erledigte zeigen ✓ in Lime (nie ✕ oder Rot). Start führt zum nächsten offenen Schritt (① sonst „Jetzt schreiben“). Klein darunter: „Sind beide ✓, ist deine Mission geschafft. Reihenfolge, wie du magst.“ bzw. „Noch ②/①, dann …“. Ohne Schreibauftrag heute eine Zeile ohne Nummer (`○ Runde · …`). Gezählt wird wie früher in der Start-Zeile (mit dem Extra, das unter den Deckel passt); ✓ hängt nur an A |
+| Startseite ganz fertig | **Mission geschafft ✓** mit den ✓-Zeilen, dann wie bisher „Morgen bereit“, „+1 Paket“, Freies Üben. Passt noch Extra unter den Deckel (schneller als geschätzt), steht dort „Extra: N Tränke“ statt „+1 Paket“ (freiwillig). Nichts fällig und nichts gemacht: wie bisher „Für heute erledigt ✓“ |
+| Unter dem Kasten (ohne Nummer, ohne ○) | „Herzeigen: „Einleitung“ · dein Blatt für Mama oder Papa, 1 Min.“ · „Ausbessern: „Einleitung“ · ca. 3 Min.“ · freiwillig ein weiterer Schreibauftrag, wenn heute schon einer geprüft ist (zum Aufholen, wie bisher) |
+| Rundenende, ② offen | **Etappe 1 von 2 geschafft!**, gleich darunter `✓ ① Runde · ○ ② Schreiben auf Papier` und „Jetzt noch ②: …“ mit [Jetzt schreiben] [Pause], unten „Pause“ statt „Fertig“ |
+| Rundenende, alles fertig | **Mission geschafft!** (nur wenn die Mission mit dieser Runde fertig wurde), sonst wie bisher. Kein Konfetti für die Mission. Freies Üben, Extra-Paket, Testtag und abgebrochene Runde wie bisher |
+| Nach „Fertig geprüft“ | unter „… zu einem Drittel voll!“: „**Mission geschafft ✓** Für heute ist alles drin.“ bzw. „Noch ① Runde, dann ist deine Mission geschafft.“ |
+| Testtag | wie bisher: „Aufwärmen · N fällig · ca. N Min.“, kein Kasten |
+| Plan-Karte | Text unverändert; Vorlese-Texte der Tage: „Mission geschafft“, „angefangen, Mission noch offen“ |
+
 ## Schreiben auf Papier (bauauftrag 6)
 
 Auftrag (Person wählen) → Bauplan, Satzanfänge, Wortspeicher → „Nimm ein Blatt und deine Füllfeder“ (ruhiger
@@ -64,6 +84,12 @@ bei Mama oder Papa: je Teil drei Fragen (Ja / Noch nicht), „Passt – ich unte
 nochmal“ → bleibt ⅓, am nächsten Tag Ausbessern (ca. 3 Min.). Voll = zweites „Passt“ an einem anderen Tag in einem
 ganzen Text, bei dem der Wortspeicher beim Schreiben zu war. Wortspeicher: 1a–1d offen, ganzer Text nur zum
 Überarbeiten, Probe zu. Kein Foto, kein Text im Handy; an den Server gehen nur Zahlen.
+
+**Bedingte Punkte** (seit `dl-v5`, fachdidaktik 08.11.2026): Ein Checklisten-Punkt, der mit „wenn es passt:“ beginnt
+(Hautfarbe, Brille und Schmuck, was die Person in der Hand oder unter dem Arm hält), braucht ✓ oder „passt hier nicht“;
+beides schließt sich aus. Er steht etwas heller da, unter der Anleitung: „„Wenn es passt“ heißt: wenn deine Person das
+hat oder man es sieht. Sonst tipp auf „passt hier nicht“.“ Pflichtpunkte brauchen wie bisher ✓. „Fertig geprüft“ geht
+erst, wenn alles entschieden ist (`checklisteFertig()`). Kein Pflichtpunkt beginnt mit „wenn es passt:“.
 
 ## Stoff (`stoff.js`, Format 2)
 
@@ -99,6 +125,10 @@ node apps/deutsch-legends/tools/stoff-pruefen.mjs --merken   # vor dem Veröffen
   nur Rolle `ziel`, `fortschritt` (Prozent, bereit, perfekt, Balken, Schreib-Zahlen, Check-Quote). Offen heute =
   fällige und neue A plus 1 für den Schreibauftrag; am Testtag nichts. Den Termin meldet die App nur, wenn die geladene
   `legends-status.js` `vorwissen` kennt – sonst zeigte eine alte Kopie zu Unrecht Rot.
+- Seit `dl-v5` meldet `fortschritt.schreiben` zusätzlich den Stand von heute: `offen` (0/1, Schreibauftrag heute noch
+  offen, steckt schon in `heute.neu`), `erledigt` (0/1, heute einer selbst geprüft) und `herzeigen` (Texte, die aufs
+  Herzeigen warten). Legends HQ zeigt damit „Heute: … · Runde ✓ · Schreibauftrag auf Papier noch offen“ und „Zum
+  Herzeigen: 1 Text …“, die Abendnachricht nennt, was fehlt.
 - Früher Start: Wer vor dem ersten Plan-Tag (`PLAN_START`, 08.11.2026) öffnet, bekommt dessen Inhalt schon – freiwillig.
   `vorStartTage()` (vor jedem Bericht) merkt sich solche Tage im Protokoll (`vs = 1`) und setzt sie, sobald sie vorbei
   sind, auf nichts offen (`o = 0`, „nichts fällig“) bzw. auf fertig, wenn dort geübt wurde. Gemessen wird am Merker,
@@ -116,17 +146,22 @@ node apps/deutsch-legends/tools/stoff-pruefen.mjs --merken   # vor dem Veröffen
 zuletzt gewusst, c = Blitz-Check 1/0, v = nächste Variante, b = letztes Pool-Beispiel) · `regel` (Paket → Tag der
 Merkkarte) · `papier` (nur Altstand dl-v1) · `stats` (xp bleibt aus dl-v1, wird nicht mehr gezeigt) · `day` (date,
 newCount, extra) · `ui` (hideInstall, onboarded, ziellinie, titel, bereit, perfekt) · `schreiben` (`a` je Auftrag:
-person, start, fertig, haken, selbst, herz, aus, ausN, rate, dauer · `t` je Schreib-Trank: lv, passt) · `log` · `plaene`.
+person, start, fertig, haken, passtNicht, selbst, herz, aus, ausN, rate, dauer · `t` je Schreib-Trank: lv, passt) · `log` · `plaene`.
+`haken` und `passtNicht` hängen am Index der Checkliste: Die Zahl der Punkte je Teil darf sich nie ändern.
 Neue Felder nur über `fresh()` und `upgrade()`; ein unlesbarer Stand wird als `deutschlegends.v1.kaputt` beiseitegelegt.
 Update dl-v1 → dl-v2: alle Felder bleiben, `ui.ziellinie` fehlt → der Ziellinien-Bildschirm kommt einmal. Update dl-v2 → dl-v3: Speicher unverändert. Update dl-v3 → dl-v4: Speicher unverändert; nur im `log` werden Tage vor
 dem 08.11.2026 berichtigt (`o = 0`, mit Üben `f = 1`). Neu im `log`: `vs = 1` = Tag vor dem Plan-Start (früher Start).
+Update dl-v4 → dl-v5: Speicher nur erweitert. `passtNicht` (Liste parallel zu `haken`) entsteht beim ersten Öffnen von
+„Selbst prüfen“; fehlt es, gilt überall „nein“. Alte `haken` bleiben; ein früher nicht abgehakter bedingter Punkt braucht
+jetzt ✓ oder „passt hier nicht“. Getestet mit einem echten dl-v3-Stand (Runde fertig, Schreibauftrag angefangen, 4 von 5 ✓):
+kein Feld verloren.
 
 ## Offline und Updates
 
 Wie Word Legends seit `wl-v5`: App-Dateien mit Internet frisch vom Server (höchstens 2,5 s warten), sonst aus dem
-Cache. Neue `VERSION` (in `sw.js` **und** `app.js`, Stand `dl-v4`) wird beim Öffnen und beim Zurückholen erkannt; die
+Cache. Neue `VERSION` (in `sw.js` **und** `app.js`, Stand `dl-v5`) wird beim Öffnen und beim Zurückholen erkannt; die
 App lädt neu, sobald sie auf der Startseite ist, nie mitten in einer Runde. Der Service Worker löscht nur eigene Caches
-(`dl-…`). Die laufende Version steht unten in den Einstellungen („Version 4“).
+(`dl-…`). Die laufende Version steht unten in den Einstellungen („Version 5“).
 
 ## Dateien
 
@@ -148,7 +183,7 @@ Auf localhost ist der Offline-Cache aus (mit `?sw` trotzdem testen). Browser-Kon
 | Befehl | Wofür |
 |---|---|
 | `DL.shiftDays(1)` | einen Tag weiter (nur in diesem Tab) |
-| `DL.tag()` | Tagesmenge wie auf der Startseite: fällig/neu A und Extra, Verben, Minuten, Deckel, Schreibauftrag, Zielstand |
+| `DL.tag()` | Tagesmenge wie auf der Startseite: Mission (`○/✓ Runde · ○/✓ Schreiben`), fällig/neu A und Extra, Verben, Minuten, Deckel, Schreibauftrag, Herzeigen, Ausbessern, Zielstand |
 | `DL.autoRunde({ p, vw, schreiben, seed })` | Simulation: spielt die Tagesrunde ohne Oberfläche (p = richtig bei Wiederholungen, vw = im Blitz-Check gewusst), Schreibauftrag mit „Passt“ |
 | `DL.check(id, eingabe, variante)` | Antwort prüfen; id einer Karte oder eines Pool-Beispiels; eingabe = Text oder Liste je Feld/Lücke, Verb Vergangenheit `['hat', 'gegangen']` oder `'ist gegangen'` |
 | `DL.ueben(['id', …], art)` | bestimmte Karten gleich üben (`art` 'check' = wie beim ersten Mal); auch `'vcheck:v-bieten'` (Verb-Check) und `'regel:v'` (Regelkarte eines Pakets) |
