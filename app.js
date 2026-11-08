@@ -3285,7 +3285,9 @@ function schreibZeigen() {
       }).join('')}</div>
       <div class="two">${wsKnopf(a, 'pruefen')}</div></div>
       <button class="btn go big" type="button" data-act="swGeprueft" ${alle ? '' : 'disabled'}>Fertig geprüft</button>
-      ${alle ? '' : '<p class="fineprint center">Noch nicht alles abgehakt? Schreib es dazu, dann hak es ab. Du kannst auch später weitermachen.</p>'}`;
+      <p class="fineprint center${alle ? ' unsichtbar' : ''}"${alle ? ' aria-hidden="true"' : ''}>Noch nicht alles abgehakt? Schreib es dazu, dann hak es ab. Du kannst auch später weitermachen.</p>`;
+    // Der Satz bleibt immer im Text und wird nur ausgeblendet: Verschwände er bei der letzten Entscheidung, rutschte die
+    // Liste ganz unten um seine Höhe nach unten, und der nächste Tipp ginge daneben (Prüfbericht H1, 08.11.2026).
   } else if (SW.schritt === 'rate') {
     body = `<div class="panel"><h3 class="sw-frage">Rate-Spiel: Wen beschreibe ich?</h3>
       <p>Lies Mama oder Papa deinen Text vor, ohne den Namen zu sagen. Erkennen sie die Person?</p></div>

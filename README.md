@@ -90,7 +90,9 @@ ganzen Text, bei dem der Wortspeicher beim Schreiben zu war. Wortspeicher: 1a–
 (Hautfarbe, Brille und Schmuck, was die Person in der Hand oder unter dem Arm hält), braucht ✓ oder „passt hier nicht“;
 beides schließt sich aus. Er steht etwas heller da, unter der Anleitung: „„Wenn es passt“ heißt: wenn deine Person das
 hat oder man es sieht. Sonst tipp auf „passt hier nicht“.“ Pflichtpunkte brauchen wie bisher ✓. „Fertig geprüft“ geht
-erst, wenn alles entschieden ist (`checklisteFertig()`). Kein Pflichtpunkt beginnt mit „wenn es passt:“.
+erst, wenn alles entschieden ist (`checklisteFertig()`). Kein Pflichtpunkt beginnt mit „wenn es passt:“. Der Satz
+„Noch nicht alles abgehakt? …“ unter dem Knopf bleibt danach stehen und wird nur ausgeblendet (`.unsichtbar`): Sonst
+rutschte die Liste ganz unten beim letzten Antippen um gut 50 px, und der nächste Tipp ginge daneben.
 
 ## Stoff (`stoff.js`, Format 2)
 

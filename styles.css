@@ -33,6 +33,7 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
+.unsichtbar { visibility: hidden; }   /* ausgeblendet, behält aber seinen Platz (nichts springt) */
 html { height: 100%; -webkit-text-size-adjust: 100%; background: var(--field); }
 body {
   margin: 0;
