@@ -17,7 +17,7 @@ const APP_NAME = 'Spell Legends';
 const APP_ID = 'dl';                    // Legends HQ: Lagebericht und Sicherung (/^[a-z]{2,8}$/)
 const STORE_KEY = 'deutschlegends.v1';  // Speicher des Fortschritts – nie ändern
 const CODE_PREFIX = 'DL1:';             // Sicherungs-Code (werkzeuge/lernstand.mjs kennt ihn)
-const VERSION = 'dl-v3';                // wie VERSION in sw.js – immer beide zusammen hochzählen
+const VERSION = 'dl-v4';                // wie VERSION in sw.js – immer beide zusammen hochzählen
 const DAY_KEY = 'dl.dayOffset';         // sessionStorage: Zeitsprung zum Testen (DL.shiftDays)
 
 // ================================================================
@@ -805,6 +805,19 @@ function nextTest() {
 function imZiel(c) { return c.rolle === 'ziel'; }
 // Früher Start: Wer vor dem ersten Plan-Tag öffnet, bekommt dessen Inhalt schon heute. Wer früher anfängt, darf.
 function planTag() { const t = today(); return PLAN_START && t < PLAN_START ? PLAN_START : t; }
+// Vor dem ersten Plan-Tag ist nichts Pflicht. Ein vergangener Tag davor zählt darum nie als ausgelassen (nichts
+// offen), und wer dort schon geübt hat, hat seine Runde (fertig). Bis dl-v3 stand der Inhalt des frühen Starts als
+// „offen“ im Protokoll: Am Tag nach dem Einrichten (So 08.11.2026) zeigten die Plan-Karte und Legends HQ den
+// Einrichtungstag als ausgelassen, die Ampel „Aufholen“. Läuft vor jedem Bericht und berichtigt auch alte Protokolle.
+function vorStartTage() {
+  if (!PLAN_START) return;
+  const t = today();
+  for (const [d, x] of Object.entries(S.log)) {
+    if (d >= PLAN_START || d >= t || !x || typeof x !== 'object') continue;
+    x.o = 0;
+    if ((x.a || 0) + (x.n || 0) > 0) x.f = 1;
+  }
+}
 
 // ================================================================
 // Karteikasten-Logik (lernmodell 3b, bauauftrag 4)
@@ -3440,6 +3453,7 @@ function fortschrittBericht() {
 }
 // Eingabe für LegendsStatus.bericht(). Ziel (imZiel) = nur Rolle „ziel“; Extra und Schreib-Tränke zählen nicht.
 function berichtEingabe() {
+  vorStartTage();
   const test = ampelKenntVorwissen() ? nextTest() : null;
   const plan = tagesPlan();
   const si = schreibInfo();

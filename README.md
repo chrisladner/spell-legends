@@ -8,7 +8,7 @@ sobald sie einmal geöffnet wurde. Gerüst nach Word Legends (`wl-v6`).
 „Spell“ heißt Zauberspruch und buchstabieren. Die internen Kennungen bleiben `dl` (`deutschlegends.v1`, `DL1:`,
 Cache `dl-…`): Sie benennen das Fach, daran hängt der Fortschritt – nie ändern.
 
-**Stand `dl-v3`** (`dl-v2` = erste veröffentlichte Version, 07.11.2026; `dl-v3`: Regelkarten mit Formen untereinander, Abfrage passt über die Tastatur). Grundlage:
+**Stand `dl-v4`** (`dl-v2` = erste veröffentlichte Version, 07.11.2026; `dl-v3`: Regelkarten mit Formen untereinander, Abfrage passt über die Tastatur; `dl-v4`: Tage vor dem Plan-Start zählen nie als ausgelassen). Grundlage:
 `auftraege/2026-11-07_deutsch-app.md` (Abschnitt 5) und `auftraege/2026-11-07_deutsch-app/bauauftrag.md`.
 
 ## Aufs iPhone
@@ -99,6 +99,10 @@ node apps/deutsch-legends/tools/stoff-pruefen.mjs --merken   # vor dem Veröffen
   nur Rolle `ziel`, `fortschritt` (Prozent, bereit, perfekt, Balken, Schreib-Zahlen, Check-Quote). Offen heute =
   fällige und neue A plus 1 für den Schreibauftrag; am Testtag nichts. Den Termin meldet die App nur, wenn die geladene
   `legends-status.js` `vorwissen` kennt – sonst zeigte eine alte Kopie zu Unrecht Rot.
+- Früher Start: Wer vor dem ersten Plan-Tag (`PLAN_START`, 08.11.2026) öffnet, bekommt dessen Inhalt schon – freiwillig.
+  `vorStartTage()` (vor jedem Bericht) setzt darum vergangene Tage vor `PLAN_START` im Protokoll auf nichts offen
+  (`o = 0`, „nichts fällig“) bzw. auf fertig, wenn dort geübt wurde. Bis `dl-v3` zählte der Einrichtungstag (07.11.)
+  am nächsten Tag als ausgelassen, Ampel „Aufholen“ (seit `dl-v4` behoben, alte Protokolle werden berichtigt).
 - Plan-Karte: Im Plan Lime, Aufholen Sonne, Notfallplan Orange; `pause` (kein Termin) und `unbekannt` grau.
 - Melden nach dem Start, beim Zurückholen (höchstens alle 10 Minuten) und am Ende jeder Runde und jedes
   Schreibauftrags; Sichern (verschlüsselt) am Ende jeder Runde.
@@ -111,14 +115,15 @@ Merkkarte) · `papier` (nur Altstand dl-v1) · `stats` (xp bleibt aus dl-v1, wir
 newCount, extra) · `ui` (hideInstall, onboarded, ziellinie, titel, bereit, perfekt) · `schreiben` (`a` je Auftrag:
 person, start, fertig, haken, selbst, herz, aus, ausN, rate, dauer · `t` je Schreib-Trank: lv, passt) · `log` · `plaene`.
 Neue Felder nur über `fresh()` und `upgrade()`; ein unlesbarer Stand wird als `deutschlegends.v1.kaputt` beiseitegelegt.
-Update dl-v1 → dl-v2: alle Felder bleiben, `ui.ziellinie` fehlt → der Ziellinien-Bildschirm kommt einmal. Update dl-v2 → dl-v3: Speicher unverändert.
+Update dl-v1 → dl-v2: alle Felder bleiben, `ui.ziellinie` fehlt → der Ziellinien-Bildschirm kommt einmal. Update dl-v2 → dl-v3: Speicher unverändert. Update dl-v3 → dl-v4: Speicher unverändert; nur im `log` werden Tage vor
+`PLAN_START` berichtigt (`o = 0`, mit Üben `f = 1`).
 
 ## Offline und Updates
 
 Wie Word Legends seit `wl-v5`: App-Dateien mit Internet frisch vom Server (höchstens 2,5 s warten), sonst aus dem
-Cache. Neue `VERSION` (in `sw.js` **und** `app.js`, Stand `dl-v3`) wird beim Öffnen und beim Zurückholen erkannt; die
+Cache. Neue `VERSION` (in `sw.js` **und** `app.js`, Stand `dl-v4`) wird beim Öffnen und beim Zurückholen erkannt; die
 App lädt neu, sobald sie auf der Startseite ist, nie mitten in einer Runde. Der Service Worker löscht nur eigene Caches
-(`dl-…`). Die laufende Version steht unten in den Einstellungen („Version 3“).
+(`dl-…`). Die laufende Version steht unten in den Einstellungen („Version 4“).
 
 ## Dateien
 
