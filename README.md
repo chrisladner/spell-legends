@@ -8,10 +8,11 @@ sobald sie einmal geöffnet wurde. Gerüst nach Word Legends (`wl-v6`).
 „Spell“ heißt Zauberspruch und buchstabieren. Die internen Kennungen bleiben `dl` (`deutschlegends.v1`, `DL1:`,
 Cache `dl-…`): Sie benennen das Fach, daran hängt der Fortschritt – nie ändern.
 
-**Stand `dl-v5`** (`dl-v2` = erste veröffentlichte Version, 07.11.2026; `dl-v3`: Regelkarten mit Formen untereinander,
+**Stand `dl-v6`** (`dl-v2` = erste veröffentlichte Version, 07.11.2026; `dl-v3`: Regelkarten mit Formen untereinander,
 Abfrage passt über die Tastatur; `dl-v4`: Tage vor dem Plan-Start zählen nie als ausgelassen, Merker `vs` im Protokoll;
 `dl-v5`: klarer Tagesauftrag – Kasten „Deine Mission heute“ mit ① Runde und ② Schreiben, Rundenende „Etappe 1 von 2“,
-bedingte Punkte in der Checkliste, Bericht sagt Legends HQ, was heute offen ist). Grundlage:
+bedingte Punkte in der Checkliste, Bericht sagt Legends HQ, was heute offen ist; `dl-v6`: Checkliste „ganzer Text“
+nennt beim Beistrich auch den Einschub, neuer Satzanfang „Die Person, die ich beschreibe, ist …“). Grundlage:
 `auftraege/2026-11-07_deutsch-app.md` (Abschnitt 5, Entscheidung „Klarer Tagesauftrag“ vom 08.11.2026) und
 `auftraege/2026-11-07_deutsch-app/bauauftrag.md`.
 
@@ -157,12 +158,12 @@ dem 08.11.2026 berichtigt (`o = 0`, mit Üben `f = 1`). Neu im `log`: `vs = 1` =
 Update dl-v4 → dl-v5: Speicher nur erweitert. `passtNicht` (Liste parallel zu `haken`) entsteht beim ersten Öffnen von
 „Selbst prüfen“; fehlt es, gilt überall „nein“. Alte `haken` bleiben; ein früher nicht abgehakter bedingter Punkt braucht
 jetzt ✓ oder „passt hier nicht“. Getestet mit einem echten dl-v3-Stand (Runde fertig, Schreibauftrag angefangen, 4 von 5 ✓):
-kein Feld verloren.
+kein Feld verloren. Update dl-v5 → dl-v6: Speicher unverändert (nur Text eines Checklisten-Punkts, Zahl der Punkte gleich).
 
 ## Offline und Updates
 
 Wie Word Legends seit `wl-v5`: App-Dateien mit Internet frisch vom Server (höchstens 2,5 s warten), sonst aus dem
-Cache. Neue `VERSION` (in `sw.js` **und** `app.js`, Stand `dl-v5`) wird beim Öffnen und beim Zurückholen erkannt; die
+Cache. Neue `VERSION` (in `sw.js` **und** `app.js`, Stand `dl-v6`) wird beim Öffnen und beim Zurückholen erkannt; die
 App lädt neu, sobald sie auf der Startseite ist, nie mitten in einer Runde. Der Service Worker löscht nur eigene Caches
 (`dl-…`). Die laufende Version steht unten in den Einstellungen („Version 5“).
 

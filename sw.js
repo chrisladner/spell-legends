@@ -1,7 +1,7 @@
 /* Spell Legends – Offline-Cache, Muster von Word Legends wl-v6.
    App-Dateien: mit Internet immer frisch vom Server (höchstens 2,5 s warten), ohne Internet aus dem Cache.
    Schrift von Google Fonts: einmal laden, dann aus dem Cache. */
-const VERSION = 'dl-v5';   // wie VERSION in app.js – immer beide zusammen hochzählen
+const VERSION = 'dl-v6';   // wie VERSION in app.js – immer beide zusammen hochzählen
 // Nur eigene Caches anfassen: Word und Geo Legends liegen auf derselben Adresse (chrisladner.github.io)
 const OWN = /^dl-/;
 const FONT_CACHE = 'dl-fonts';

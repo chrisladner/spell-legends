@@ -1198,7 +1198,7 @@ window.STOFF = {
     teile: {
       'pb-trank-ein': {
         bauplan: ['Wer (Name oder Beruf)', 'Alter', 'Größe', 'Figur', 'wenn es passt: Hautfarbe'],
-        bausteine: ['Bei der Person, die ich beschreibe, handelt es sich um …', '… ist … Jahre alt und ungefähr … m groß.', 'Die …-jährige … ist schlank / kräftig / sportlich.', 'Sie / Er ist hellhäutig.'],
+        bausteine: ['Bei der Person, die ich beschreibe, handelt es sich um …', 'Die Person, die ich beschreibe, ist …', '… ist … Jahre alt und ungefähr … m groß.', 'Die …-jährige … ist schlank / kräftig / sportlich.', 'Sie / Er ist hellhäutig.'],
         checkliste: ['Wer ist es: Name oder Beruf, sonst Frau, Mann, Mädchen oder Bub (gern mit „Bei der Person, die ich beschreibe, handelt es sich um …“)', 'Alter', 'Größe', 'Figur', 'wenn es passt: Hautfarbe'],
         herzeigen: ['Wer es ist: Name oder Beruf?', 'Alter, Größe und Figur?', 'Alles in der Gegenwart (Präsens): sie trägt, er hält?']
       },
@@ -1221,7 +1221,7 @@ window.STOFF = {
         herzeigen: ['Ein besonderes Kennzeichen (z. B. Narbe, Tattoo, Zahnlücke)?', 'Die Wirkung (z. B. freundlich, streng)?', 'Kurz, zwei bis drei Sätze?']
       }
     },
-    ganzerText: { checkliste: ['Gegenwart (Präsens)', 'mindestens 5 verschiedene Zeitwörter statt hat und ist', 'nur beschreiben, was man sieht; die Meinung kommt in den Schluss', 'Hauptwörter groß, Wiewörter und Zeitwörter klein', 'Punkt am Satzende; kein Beistrich zwischen „Wer?“ und Zeitwort (Die nette Frau hilft …)', 'Überschrift'] },
+    ganzerText: { checkliste: ['Gegenwart (Präsens)', 'mindestens 5 verschiedene Zeitwörter statt hat und ist', 'nur beschreiben, was man sieht; die Meinung kommt in den Schluss', 'Hauptwörter groß, Wiewörter und Zeitwörter klein', 'Punkt am Satzende; kein Beistrich zwischen „Wer?“ und Zeitwort (Die nette Frau hilft …), aber ein Einschub steht zwischen zwei Beistrichen (Die Person, die ich beschreibe, ist …)', 'Überschrift'] },
     auftraege: [
       { id: 'pb-papier-1a', ab: '2026-11-08', traenke: ['pb-trank-ein'], titel: 'Schreibauftrag 1 von 4: Einleitung', minuten: 6, wortspeicher: 'offen',
         text: 'Schreib die Einleitung zu deinem Text im Heft noch einmal neu, zur Person auf dem Bild. Du darfst auch eine andere Person nehmen.' },
