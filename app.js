@@ -1471,7 +1471,7 @@ function zielSatz(z, plan) {
   const drunter = z.bereiche.filter(x => x.prozent < ZIELLINIE);
   if (S.ui.bereit && drunter.length === 1) return `${drunter[0].b.titel} ${istSind(drunter[0].b.titel)} knapp unter die Linie gerutscht (${drunter[0].prozent} %). Deine nächste Runde holt das.`;
   if (d === 1) return 'Morgen ist die Schularbeit. Heute deine Runde, dann früh schlafen. Im Schlaf festigt sich, was du geübt hast.';
-  if (!KARTEN.some(c => S.k[c.id])) return '0 % · Los geht’s!';
+  if (!KARTEN.some(c => S.k[c.id])) return `${z.prozent} % · Los geht’s!`;   // Schreib-Trank zuerst: schon 1 %
   if (drunter.length === 1) return `Noch 1 Balken: ${drunter[0].b.titel}, noch ${ZIELLINIE - drunter[0].prozent} %.`;
   const pr = prognose();
   if (pr && pr.tag) return `Ziel: alle drei Balken über die Ziellinie. Bereit frühestens ${dateShort(pr.tag)}`;   // dateShort endet mit Punkt
@@ -1550,8 +1550,11 @@ function startHTML(plan) {
   const m = missionHeute(plan, si);
   const zwei = m.schreibTag;   // ohne Schreibauftrag heute: eine Zeile ohne Nummer
   const runde = missionZeile(m.rundeOffen, m.rundeOffen ? rundeText(plan, zwei) : `<b>${zwei ? '① ' : ''}Runde</b>`, 'start');
+  // ② zeigt, wie weit der Schreibauftrag ist: neu mit Minuten, sonst „angefangen“ bzw. „noch selbst prüfen“
+  const stand = m.schreibOffen ? schreibStand(si.offen) : '';
+  const wieWeit = { neu: `ca. ${esc(si.offen && si.offen.minuten || 6)} Min.`, angefangen: 'angefangen', geschrieben: 'noch selbst prüfen' }[stand];
   const schreiben = !zwei ? '' : missionZeile(m.schreibOffen,
-    m.schreibOffen ? `<b>② Schreiben auf Papier</b> · „${esc(kurzTitel(si.offen))}“ · ca. ${esc(si.offen.minuten || 6)} Min.` : '<b>② Schreiben auf Papier</b>',
+    m.schreibOffen ? `<b>② Schreiben auf Papier</b> · „${esc(kurzTitel(si.offen))}“ · ${wieWeit}` : '<b>② Schreiben auf Papier</b>',
     'schreiben', m.schreibOffen ? si.offen.id : '');
   if (m.fertig) {
     // Nichts fällig und nichts gemacht (z. B. nach dem Test): wie bisher „Für heute erledigt“, ohne Mission
@@ -1563,7 +1566,7 @@ function startHTML(plan) {
   }
   const knopf = m.rundeOffen
     ? '<button class="btn go big start" type="button" data-act="start">Start</button>'
-    : `<button class="btn go big start" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">Jetzt schreiben</button>`;
+    : `<button class="btn go big start" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">${SCHREIB_KNOPF[stand]}</button>`;
   const klein = !zwei ? ''
     : m.rundeOffen && m.schreibOffen ? 'Sind beide ✓, ist deine Mission geschafft. Reihenfolge, wie du magst.'
     : m.rundeOffen ? 'Noch ①, dann ist deine Mission für heute geschafft.'
@@ -1596,7 +1599,7 @@ function nachMissionHTML(plan) {
       ${extra ? `<button class="btn" type="button" data-act="extra">+1 Paket: ${Math.min(MODELL.extraPaket, extraOffeneKarten().length)} Extra</button>` : ''}
       ${got ? '<button class="btn" type="button" data-act="ueben">Freies Üben</button>' : ''}
     </div>
-    ${extraAuto ? `<p class="fineprint">Noch Zeit für Extra, ca. ${minuten(plan.sek)} Min. Extra zählt nicht für die Ziellinie.</p>` : ''}
+    ${extraAuto ? `<p class="fineprint">Freiwillig, ca. ${minuten(plan.sek)} Min. Extra zählt nicht für die Ziellinie.</p>` : ''}
     ${extra ? '<p class="fineprint">Ein Paket kostet heute ca. 3 Min., an den 3 Tagen danach je ca. 1 Min. Extra zählt nicht für die Ziellinie.</p>' : ''}
     ${got ? '<p class="fineprint">Freies Üben füllt nichts. Gewusst zählt morgen, wenn der Trank wieder dran ist.</p>' : ''}`}`;
 }
@@ -3046,7 +3049,7 @@ function summary(s, extra) {
   const noch2 = etappe1 ? `<div class="panel mission-sum">
       <p class="mstand"><span class="ok">✓ ① Runde</span> · <span>○ ② Schreiben auf Papier</span></p>
       <p>Jetzt noch ②: Schreibauftrag „${esc(kurzTitel(si.offen))}“, ca. ${esc(si.offen.minuten || 6)} Min. Dann ist deine Mission für heute geschafft.</p>
-      <div class="two"><button class="btn go" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">Jetzt schreiben</button><button class="btn" type="button" data-act="home">Pause</button></div>
+      <div class="two"><button class="btn go" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">${SCHREIB_KNOPF[schreibStand(si.offen)]}</button><button class="btn" type="button" data-act="home">Pause</button></div>
     </div>` : '';
   app.innerHTML = `
   <section class="screen summary">
@@ -3101,6 +3104,13 @@ function summary(s, extra) {
 let SW = null;   // laufender Schreibauftrag { a, schritt, fragen }
 function aStand(a) { return S.schreiben.a[a.id] || null; }
 function aStandNeu(a) { return (S.schreiben.a[a.id] = S.schreiben.a[a.id] || { person: '', start: '', fertig: '', haken: [], passtNicht: [], selbst: '', herz: [], aus: '' }); }
+// Wie weit ein Schreibauftrag ist, für Zeile ② und Knopf (Projektleitung, 08.11.2026): neu · angefangen (Person,
+// Bauplan oder Schreiben) · geschrieben (noch selbst prüfen). Antippen führt wie bisher zum richtigen Schritt.
+function schreibStand(a) {
+  const st = aStand(a) || {};
+  return st.fertig ? 'geschrieben' : st.start ? 'angefangen' : 'neu';
+}
+const SCHREIB_KNOPF = { neu: 'Jetzt schreiben', angefangen: 'Weiterschreiben', geschrieben: 'Selbst prüfen' };
 function kurzTitel(a) {
   if (!a) return '';
   const t = String(a.titel || '');
@@ -3145,8 +3155,8 @@ function schreibPanelHTML(plan) {
   for (const a of si.herz) teile.push(`<button class="btn neben" type="button" data-act="herzeigen" data-id="${esc(a.id)}"><b>Herzeigen:</b> „${esc(kurzTitel(a))}“ · dein Blatt für Mama oder Papa, 1 Min.</button>`);
   for (const a of si.aus) teile.push(`<button class="btn neben" type="button" data-act="ausbessern" data-id="${esc(a.id)}"><b>Ausbessern:</b> „${esc(kurzTitel(a))}“ · ca. 3 Min.</button>`);
   if (si.offen && !si.pflichtOffen) {
-    const begonnen = (aStand(si.offen) || {}).start;
-    teile.push(`<button class="btn neben" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}"><b>${begonnen ? 'Weiterschreiben' : 'Nächster Schreibauftrag'}:</b> „${esc(kurzTitel(si.offen))}“ · du darfst ihn auch jetzt schon schreiben</button>`);
+    const stand = schreibStand(si.offen);
+    teile.push(`<button class="btn neben" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}"><b>${stand === 'neu' ? 'Nächster Schreibauftrag' : SCHREIB_KNOPF[stand]}:</b> „${esc(kurzTitel(si.offen))}“ · du darfst ihn auch jetzt schon schreiben</button>`);
   }
   if (!teile.length) return '';
   return `<div class="panel schreib-panel">${teile.join('')}</div>`;
