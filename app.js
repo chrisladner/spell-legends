@@ -17,7 +17,7 @@ const APP_NAME = 'Spell Legends';
 const APP_ID = 'dl';                    // Legends HQ: Lagebericht und Sicherung (/^[a-z]{2,8}$/)
 const STORE_KEY = 'deutschlegends.v1';  // Speicher des Fortschritts – nie ändern
 const CODE_PREFIX = 'DL1:';             // Sicherungs-Code (werkzeuge/lernstand.mjs kennt ihn)
-const VERSION = 'dl-v6';                // wie VERSION in sw.js – immer beide zusammen hochzählen
+const VERSION = 'dl-v7';                // wie VERSION in sw.js – immer beide zusammen hochzählen
 const DAY_KEY = 'dl.dayOffset';         // sessionStorage: Zeitsprung zum Testen (DL.shiftDays)
 
 // ================================================================

@@ -1203,15 +1203,15 @@ window.STOFF = {
         herzeigen: ['Wer es ist: Name oder Beruf?', 'Alter, Größe und Figur?', 'Alles in der Gegenwart (Präsens): sie trägt, er hält?']
       },
       'pb-trank-kopf': {
-        bauplan: ['wenn es passt: Kopfbedeckung', 'Haare (Farbe, Frisur)', 'Stirn, Augenbrauen, Augen', 'Nase', 'Mund', 'Ohren', 'Hals'],
-        bausteine: ['Ihre / Seine … Haare sind …', '… umrahmen ihr Gesicht.', 'Unter der … Stirn wachsen … Augenbrauen.', 'Hinter der Brille blitzen …', 'In der Mitte des Gesichts sitzt eine … Nase.', 'An den Ohren baumeln …', 'Um den Hals trägt sie …', 'Zeitwörter statt hat und ist: tragen · anhaben · sitzen · umrahmen · fallen · reichen (bis) · wachsen · funkeln · leuchten · blitzen · strahlen · schmücken · baumeln · bedecken · stecken (in) · halten · wirken · aussehen'],
-        checkliste: ['von oben nach unten, was man sieht: Kopfbedeckung → Haare (Farbe, Frisur) → Stirn, Augenbrauen, Augen → Nase → Mund → Ohren → Hals', 'wenn es passt: Brille und Schmuck dort, wo sie sind (Ohrringe an den Ohren, Kette am Hals)', 'zu jedem Teil ein genaues Wiewort'],
+        bauplan: ['wenn es passt: Kopfbedeckung', 'Haare (Farbe, Frisur) und Gesichtsform', 'Stirn, Augenbrauen, Augen', 'Nase', 'Mund', 'Ohren (oder gleich nach den Augen)', 'Hals'],
+        bausteine: ['Ihre / Seine … Haare fallen bis …', '… Haare umrahmen ihr … Gesicht.', 'Unter der … Stirn wachsen … Augenbrauen.', 'Hinter der Brille blitzen …', 'In der Mitte des Gesichts sitzt eine … Nase.', 'Sie / Er lächelt mit … Lippen.', 'An den Ohren baumeln …', 'Um den Hals trägt sie …', 'Zeitwörter statt hat und ist: tragen · anhaben · sitzen · umrahmen · fallen · reichen (bis) · wachsen · funkeln · leuchten · blitzen · strahlen · schmücken · baumeln · bedecken · stecken (in) · halten · wirken · aussehen'],
+        checkliste: ['von oben nach unten, was man sieht: Kopfbedeckung → Haare (Farbe, Frisur) und Gesichtsform → Stirn, Augenbrauen, Augen → Nase → Mund → Ohren → Hals (die Ohren dürfen auch gleich nach den Augen kommen)', 'wenn es passt: Brille und Schmuck dort, wo sie sind (Brille meist bei den Augen, Ohrringe an den Ohren, Kette am Hals)', 'zu jedem Teil ein genaues Wiewort, das man sieht (gelockt, buschig, spitz), nicht schön oder toll'],
         herzeigen: ['Von oben nach unten, von den Haaren bis zum Hals?', 'Zu jedem Teil ein genaues Wiewort (buschige Augenbrauen, spitze Nase)?', 'Nur, was man sieht, ohne eigene Meinung?']
       },
       'pb-trank-kleid': {
         bauplan: ['Oberkörper', 'Unterkörper', 'Socken und Schuhe', 'wenn es passt: was die Person in der Hand oder unter dem Arm hält'],
         bausteine: ['Über … trägt sie …', 'Dazu trägt er …', 'Ihre Beine stecken in …', 'An den Füßen trägt …', 'In der Hand hält …', 'Zeitwörter statt hat und ist: tragen · anhaben · sitzen · umrahmen · fallen · reichen (bis) · wachsen · funkeln · leuchten · blitzen · strahlen · schmücken · baumeln · bedecken · stecken (in) · halten · wirken · aussehen'],
-        checkliste: ['von oben nach unten, was man sieht: Oberkörper → Unterkörper → Socken und Schuhe', 'bei jedem Stück Farbe oder Wiewort', 'wenn es passt: was die Person in der Hand oder unter dem Arm hält', 'nicht dreimal „sie hat“'],
+        checkliste: ['von oben nach unten, was man sieht: Oberkörper → Unterkörper → Socken und Schuhe · Schal nur einmal: beim Hals oder hier', 'bei jedem Stück Farbe oder Wiewort', 'wenn es passt: was die Person in der Hand oder unter dem Arm hält', 'nicht dreimal „sie hat“'],
         herzeigen: ['Von oben nach unten bis zu den Schuhen?', 'Bei jedem Stück eine Farbe oder ein Wiewort?', 'Verschiedene Zeitwörter statt immer „hat“ (trägt, steckt, hält)?']
       },
       'pb-trank-schluss': {
@@ -1221,7 +1221,7 @@ window.STOFF = {
         herzeigen: ['Ein besonderes Kennzeichen (z. B. Narbe, Tattoo, Zahnlücke)?', 'Die Wirkung (z. B. freundlich, streng)?', 'Kurz, zwei bis drei Sätze?']
       }
     },
-    ganzerText: { checkliste: ['Gegenwart (Präsens)', 'mindestens 5 verschiedene Zeitwörter statt hat und ist', 'nur beschreiben, was man sieht; die Meinung kommt in den Schluss', 'Hauptwörter groß, Wiewörter und Zeitwörter klein', 'Punkt am Satzende; kein Beistrich zwischen „Wer?“ und Zeitwort (Die nette Frau hilft …), aber ein Einschub steht zwischen zwei Beistrichen (Die Person, die ich beschreibe, ist …)', 'Überschrift'] },
+    ganzerText: { checkliste: ['Gegenwart (Präsens)', 'mindestens 5 verschiedene Zeitwörter statt hat und ist', 'nur beschreiben, was man sieht; die Meinung kommt in den Schluss', 'Hauptwörter und Satzanfänge groß, Wiewörter und Zeitwörter klein', 'Punkt am Satzende; kein Beistrich zwischen „Wer?“ und Zeitwort (Die nette Frau hilft …), aber ein Einschub steht zwischen zwei Beistrichen (Die Person, die ich beschreibe, ist …)', 'Überschrift'] },
     auftraege: [
       { id: 'pb-papier-1a', ab: '2026-11-08', traenke: ['pb-trank-ein'], titel: 'Schreibauftrag 1 von 4: Einleitung', minuten: 6, wortspeicher: 'offen',
         text: 'Schreib die Einleitung zu deinem Text im Heft noch einmal neu, zur Person auf dem Bild. Du darfst auch eine andere Person nehmen.' },
