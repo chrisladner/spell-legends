@@ -1558,7 +1558,13 @@ function zielSatz(z, plan) {
   if (z.balkenBereit) { const f = z.siegelSoll - z.siegel; return `Alle drei Balken sind über der Ziellinie. Für BEREIT ${f === 1 ? 'fehlt noch 1 Lese-Siegel' : `fehlen noch ${f} Lese-Siegel`}.`; }
   const drunter = z.bereiche.filter(x => x.prozent < ZIELLINIE);
   if (S.ui.bereit && drunter.length === 1) return `${drunter[0].b.titel} ${istSind(drunter[0].b.titel)} knapp unter die Linie gerutscht (${drunter[0].prozent} %). Deine nächste Runde holt das.`;
-  if (d === 1) return 'Morgen ist die Schularbeit. Heute deine Runde, dann früh schlafen. Im Schlaf festigt sich, was du geübt hast.';
+  if (d === 1) {
+    // Am Vortag sagt der Satz, was heute wirklich dran ist: die Probe allein (Probe-Tag), Runde und Papier-Auftrag
+    // (Mission) oder nur die Runde – nie „deine Runde“ neben „Heute ist nur die Probe dran“ (Prüfbericht B1).
+    const m = missionHeute(plan);
+    const heute = m.rundeFrei ? 'Heute die Probe-Schularbeit' : m.schreibTag ? 'Heute deine Mission' : 'Heute deine Runde';
+    return `Morgen ist die Schularbeit. ${heute}, dann früh schlafen. Im Schlaf festigt sich, was du geübt hast.`;
+  }
   if (!KARTEN.some(c => S.k[c.id])) return `${z.prozent} % · Los geht’s!`;   // Schreib-Trank zuerst: schon 1 %
   if (drunter.length === 1) return `Noch 1 Balken: ${drunter[0].b.titel}, noch ${ZIELLINIE - drunter[0].prozent} %.`;
   const pr = prognose();
@@ -1636,9 +1642,11 @@ function missionHeute(plan = tagesPlan(), si = schreibInfo()) {
   // Der Papier-Auftrag von heute (②): der offene Pflicht-Auftrag, sonst der heute selbst geprüfte (die Probe geht vor).
   // Seit dl-v8 kann das ein Schreibauftrag, ein Leseblatt oder die Probe-Schularbeit sein (auftrag.art).
   const auftrag = si.pflichtOffen ? si.offen : si.heuteGeprueft.find(a => a.art === 'probe') || si.heuteGeprueft[si.heuteGeprueft.length - 1] || null;
-  // Probe-Tag (Lernauftrag Abschnitt 5, 11.11.2026): Die Probe-Schularbeit allein ist die Mission, die Runde ist an
-  // dem Tag freiwillig – auch wenn die Probe später gemacht wird als geplant.
-  const rundeFrei = !!auftrag && auftrag.art === 'probe';
+  // Probe-Tag (Lernauftrag Abschnitt 5, 11.11.2026): Die Probe-Schularbeit allein ist die Mission, die Runde ist
+  // freiwillig. Das gilt (a) am ersten Tag, an dem die Probe der Papier-Auftrag des Tages ist (probeErsterTag), und
+  // (b) an dem Tag, an dem sie selbst geprüft wird. Bleibt sie liegen, gilt ab dem nächsten Tag wieder der normale
+  // Kasten mit ① Runde und ② Probe – sonst wäre die Runde auf Dauer freiwillig (Prüfbericht B1, 11.11.2026).
+  const rundeFrei = !!auftrag && auftrag.art === 'probe' && (!si.pflichtOffen || probeErsterTag(auftrag) === today());
   return {
     rundeOffen,          // sind heute noch A-Karten offen (auch am Probe-Tag ehrlich gezählt)
     rundeFrei,           // Runde heute freiwillig
@@ -1649,6 +1657,20 @@ function missionHeute(plan = tagesPlan(), si = schreibInfo()) {
     fertig: (rundeFrei || !rundeOffen) && !si.pflichtOffen,
     getan: (e.a || 0) + (e.n || 0) > 0 || si.heuteGeprueft.length > 0   // heute schon etwas dafür gemacht
   };
+}
+// Erster Tag, an dem die Probe der Papier-Auftrag des Tages ist: ihr ab-Tag – oder, wenn davor noch etwas nachzuholen
+// war, der Tag nach dem letzten selbst geprüften Auftrag davor (an dem Tag selbst war schon ein Auftrag geprüft).
+// Nach dem Kalender gerechnet, nicht nach dem Öffnen der App. '' solange davor noch ein Auftrag offen ist.
+function probeErsterTag(a) {
+  let tag = a.ab;
+  for (const x of PAPIER) {
+    if (x === a) break;
+    const s = (aStand(x) || {}).selbst;
+    if (!s) return '';
+    const danach = addDays(s, 1);
+    if (danach > tag) tag = danach;
+  }
+  return PLAN_START && tag < PLAN_START ? PLAN_START : tag;
 }
 // „① Runde · 12 fällig · 8 neu · ca. 15 Min.“ (am 1. Tag statt der Zahlen der Blitz-Check). Gezählt wird, was der
 // Start-Knopf wirklich bringt, also mit dem Extra, das heute unter den Deckel passt.
@@ -3325,16 +3347,24 @@ function ausOffen(st) {
 }
 // Was heute auf Papier dran ist. Seit dl-v8 stehen Schreibaufträge und Leseblätter in einer Reihe (PAPIER): Der erste
 // offene, dessen Tag gekommen ist, ist der Schritt ② von heute; ein selbst geprüfter Auftrag am Tag genügt für die
-// Mission. Nach dem Test fallen offene Leseblätter weg (sie gehörten zu dieser Schularbeit).
+// Mission – gleich welcher (auch ein freiwillig vorgezogenes Leseblatt).
+// Ein offener Schreibauftrag oder eine offene Probe sperrt die Leseblätter nicht (Prüfbericht B1, 11.11.2026): Das
+// nächste offene Leseblatt steht dann freiwillig unter dem Kasten (leseFrei) und bringt nach dem Herzeigen sein
+// Siegel. So sind drei Siegel auch ohne Probe erreichbar (Blatt 1, 3 und das Ersatz-Blatt).
+// Nach dem Test gibt es keinen Pflicht-Auftrag mehr: Die Mission ist nur noch die Runde. Leseblätter und die Probe
+// fallen aus der Reihe (sie gehörten zu dieser Schularbeit), offene Schreibaufträge bleiben freiwillig erreichbar.
 function schreibInfo() {
   const pt = planTag(), t = today();
   const selbst = a => (aStand(a) || {}).selbst;
   const vorbei = testVorbei();
-  const offen = PAPIER.filter(a => a.ab <= pt && !selbst(a) && !(vorbei && a.art === 'lesen'));
-  const heuteGeprueft = PAPIER.filter(a => selbst(a) === t);
+  const offen = PAPIER.filter(a => a.ab <= pt && !selbst(a) && !(vorbei && a.art !== 'schreiben'));
+  // heute selbst geprüft: Aufträge der Reihe und das Ersatz-Blatt (auch das genügt als Papier-Auftrag des Tages – am
+  // Vortag soll niemand die 40-Minuten-Probe nachholen müssen, um die Mission zu schaffen)
+  const heuteGeprueft = [...PAPIER, ...LESE.filter(a => a.ersatz)].filter(a => selbst(a) === t);
   const si = {
     offen: offen[0] || null,
-    pflichtOffen: !!offen[0] && !heuteGeprueft.length && !istTesttag(),   // ein Papier-Auftrag am Tag zählt für die Mission
+    pflichtOffen: !!offen[0] && !heuteGeprueft.length && !istTesttag() && !vorbei,   // ein Papier-Auftrag am Tag zählt für die Mission
+    leseFrei: offen[0] && offen[0].art !== 'lesen' ? offen.find(a => a.art === 'lesen') || null : null,
     heuteGeprueft,
     herz: AUFTRAEGE.filter(a => herzOffen(aStand(a))),     // Texte, die aufs Herzeigen warten
     leseHerz: LESE.filter(a => herzOffen(aStand(a))),      // Leseblätter, die auf den Vergleich mit der Lösung warten
@@ -3346,13 +3376,16 @@ function schreibInfo() {
 }
 // Ersatz-Blatt (Leseblatt 4): nur als freiwilliger Knopf unter dem Kasten, ab seinem Tag (Mo 16.11.) und vor dem
 // Testtag, solange ein Lese-Siegel fehlt. Ein Blatt, das nur noch aufs Herzeigen wartet, zählt dabei schon als Siegel:
-// Dann fehlt das Herzeigen, kein weiteres Blatt. Wichtigster Fall: Die Probe wurde nicht gemacht – ihr Leseblatt gäbe
-// es sonst nur mit den ganzen 40 Minuten. Angefangen bleibt das Ersatz-Blatt sichtbar, bis es geprüft ist.
+// Dann fehlt das Herzeigen, kein weiteres Blatt. Und nur, wenn kein anderes Leseblatt offen ist (als ② oder freiwillig
+// unter dem Kasten): Zuerst kommen die Blätter der Reihe, das Ersatz-Blatt erst danach (Prüfbericht M1). Wichtigster
+// Fall: Die Probe wurde nicht gemacht – ihr Leseblatt gäbe es sonst nur mit den ganzen 40 Minuten. Angefangen bleibt
+// das Ersatz-Blatt sichtbar, bis es geprüft ist.
 function ersatzBlatt(si) {
   const a = LESE.find(x => x.ersatz && !(aStand(x) || {}).selbst);
   const d = testIn();
   if (!a || !officialTest() || d == null || d < 1 || a.ab > today()) return null;
   if ((aStand(a) || {}).start) return a;
+  if (PAPIER.some(x => x.art === 'lesen' && x.ab <= planTag() && !(aStand(x) || {}).selbst)) return null;
   return leseSiegel() + si.leseHerz.length < LESE_SIEGEL ? a : null;
 }
 // Unter dem Kasten „Deine Mission heute“, ohne Nummer und ohne ○: Herzeigen und Ausbessern gehören nicht zur
@@ -3371,6 +3404,11 @@ function schreibPanelHTML(plan) {
     // Am Testtag kein Leseblatt und keine Probe mehr anbieten (der Schreibauftrag bleibt wie bisher freiwillig stehen)
     if (a.art === 'schreiben') teile.push(`<button class="btn neben" type="button" data-act="schreiben" data-id="${esc(a.id)}"><b>${stand === 'neu' ? 'Nächster Schreibauftrag' : SCHREIB_KNOPF[stand]}:</b> „${esc(kurzTitel(a))}“ · du darfst ihn auch jetzt schon schreiben</button>`);
     else if (!istTesttag()) teile.push(`<button class="btn neben" type="button" data-act="${papierAct(a)}" data-id="${esc(a.id)}"><b>${stand === 'neu' ? (a.art === 'lesen' ? 'Nächstes Leseblatt' : 'Als Nächstes') : papierKnopf(a)}:</b> ${esc(papierName(a))} · ${a.art === 'lesen' ? 'du darfst es auch jetzt schon machen' : 'du darfst sie auch jetzt schon machen'}</button>`);
+  }
+  // Leseblatt hinter einem offenen Schreibauftrag oder einer offenen Probe: freiwillig erreichbar (nicht am Testtag)
+  if (si.leseFrei && !istTesttag()) {
+    const a = si.leseFrei, stand = schreibStand(a);
+    teile.push(`<button class="btn neben" type="button" data-act="lesen" data-id="${esc(a.id)}"><b>${stand === 'neu' ? 'Nächstes Leseblatt' : papierKnopf(a)}:</b> ${esc(papierName(a))} · du darfst es auch jetzt schon machen</button>`);
   }
   if (si.ersatz) {
     const a = si.ersatz;
@@ -3535,7 +3573,7 @@ function schreibZeigen() {
     const mission = missionSatzHTML(m);
     body = `<div class="panel sw-drittel"><div class="sw-traenke">${a.traenke.map((id, i) => `<span>${trankHTML(lv[i], { feder: true, gross: true, neu: true })}<small>${esc(TRANK[id].titel)}</small></span>`).join('')}</div>
       <p class="ruhe-gross">${a.traenke.length === 1 ? `Trank „${esc(TRANK[a.traenke[0]].titel)}“ ist zu einem Drittel voll!`
-        : probe2 ? `Probe geschafft! ${papierMinuten(a)} Minuten am Stück, wie am ${TEST ? WEEKDAYS[weekdayOf(TEST.datum)] : 'Testtag'}.` : 'Selbst geprüft – stark!'}</p>
+        : probe2 ? `Probe geschafft! Lesen und Schreiben am Stück, wie am ${TEST ? WEEKDAYS[weekdayOf(TEST.datum)] : 'Testtag'}.` : 'Selbst geprüft – stark!'}</p>
       ${mission}
       ${st.rate === 'erkannt' ? '<p>Erkannt! Deine Beschreibung funktioniert.</p>' : st.rate === 'nicht' ? '<p>Nicht erkannt. Welches Detail hätte geholfen? Schreib einen Satz dazu.</p>' : ''}
       <p>${probe2 ? 'Zeig Mama oder Papa jetzt deinen Text und das Leseblatt. Das geht auch später.' : 'Zeig dein Blatt jetzt Mama oder Papa. Das geht auch später.'}</p></div>
@@ -3808,7 +3846,7 @@ function leseZeigen() {
   } else if (LW.schritt === 'geprueft') {
     const m = istTesttag() ? null : missionHeute();
     body = `<div class="panel sw-drittel"><p class="ruhe-gross">Selbst geprüft – stark!</p>
-      ${a.ersatz ? '' : missionSatzHTML(m)}
+      ${missionSatzHTML(m)}
       <p>Jetzt mit Mama oder Papa die Lösung vergleichen. Das geht auch später.</p></div>
       <div class="two"><button class="btn go" type="button" data-act="leseHerz" data-id="${esc(a.id)}">Jetzt herzeigen</button><button class="btn" type="button" data-act="swSpaeter">Später herzeigen</button></div>`;
   } else if (LW.schritt === 'herz') {
@@ -4318,7 +4356,7 @@ window.DL = {
     return {
       mission: p.testtag ? 'Testtag (keine Mission)' : `${m.rundeOffen ? '○' : '✓'} Runde${m.rundeFrei ? ' (freiwillig)' : ''}${m.schreibTag ? ` · ${m.schreibOffen ? '○' : '✓'} ${{ schreiben: 'Schreiben', lesen: 'Lesen', probe: 'Probe' }[m.art]}` : ''}${m.fertig ? (m.getan ? ' · geschafft' : ' · nichts fällig') : ''}`,
       herzeigen: [...si.herz, ...si.leseHerz].map(a => a.id), ausbessern: si.aus.map(a => a.id),
-      papier: m.auftrag ? m.auftrag.id : '', siegel: z.siegel, ersatz: si.ersatz ? si.ersatz.id : '', extraPause: extraPause(),
+      papier: m.auftrag ? m.auftrag.id : '', leseFrei: si.leseFrei ? si.leseFrei.id : '', siegel: z.siegel, ersatz: si.ersatz ? si.ersatz.id : '', extraPause: extraPause(),
       tag: today(), wochentag: DAY_SHORT[weekdayOf(today())], testIn: testIn(), endspurt: istEndspurt(), testtag: p.testtag,
       faelligA: p.aDue.length, verben: p.verben.length, neuA: p.aNeu.length, faelligExtra: p.eDue.length, neuExtra: p.eNeu.length,
       merk: p.merk.map(x => x.id), minA: r1(p.sekA / 60), min: r1(p.sek / 60), deckel: deckelHeute(), schonMin: r1(heuteSek() / 60),
@@ -4340,8 +4378,9 @@ window.DL = {
   // Simulation, nur zum Testen: spielt die Tagesrunde mit denselben Funktionen wie die Runde durch, ohne Oberfläche.
   // p = Anteil richtig bei Wiederholungen, vw = Anteil im Blitz-Check gewusst, Zeit nach MODELL.sek (+ Fehler).
   // schreiben: Papier-Auftrag des Tages selbst prüfen und herzeigen (Schreibauftrag: „Passt“; Leseblatt: punkte
-  // eintragen, Standard 5; Probe-Schularbeit: beides). runde: false lässt die Karten-Runde aus (Probe-Tag).
-  // Gibt die Tagesmenge vorher zurück.
+  // eintragen, Standard 5; Probe-Schularbeit: beides). schreiben: 'lesen' macht statt des Pflicht-Auftrags das
+  // Leseblatt, das gerade erreichbar ist (②, freiwillig unter dem Kasten oder das Ersatz-Blatt) – so lässt sich
+  // „Probe nie gemacht“ nachstellen. runde: false lässt die Karten-Runde aus (Probe-Tag). Gibt die Tagesmenge vorher zurück.
   autoRunde({ p = 0.85, vw = 0.62, schreiben = true, seed = 1, runde = true, punkte = 5, herzeigen = true } = {}) {
     const vorher = window.DL.tag();
     const plan = tagesPlan(), t = today();
@@ -4364,8 +4403,10 @@ window.DL = {
     }
     if (schreiben) {
       const si = schreibInfo();
-      if (si.pflichtOffen) {
-        const a = si.offen, st = aStandNeu(a);
+      const a = schreiben === 'lesen' ? (si.pflichtOffen && si.offen.art === 'lesen' ? si.offen : si.leseFrei || si.ersatz)
+        : si.pflichtOffen ? si.offen : null;
+      if (a) {
+        const st = aStandNeu(a);
         st.start = st.start || t; st.fertig = t;
         if (a.art === 'lesen') {
           st.haken = LESE_CHECK.map(() => true);
