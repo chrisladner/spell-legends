@@ -426,3 +426,7 @@ pb-papier-1c
 pb-papier-1d
 pb-papier-2
 pb-papier-3
+le-papier-1
+le-papier-2
+le-papier-3
+le-papier-4

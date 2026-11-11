@@ -3,7 +3,8 @@
   ---------------------------------------------------------------
   Alles, was gelernt wird, steht hier; die App liest window.STOFF. Inhalt aus auftraege/2026-11-07_deutsch-app:
   stoff.md (fachdidaktik) und verben.json, Karten je Gruppe nach lernmodell.md 3a, Datenvertrag bauauftrag.md 3 und 6.
-  Stand 07.11.2026: 417 Karten (Ziel 249 · Extra 168 · Nachschlagen 0; ws und pb-adj seit 07.11. 18:10 im Extra-Regal) und 4 Schreib-Tränke.
+  Stand 11.11.2026: 417 Karten (Ziel 239 · Extra 168 · Ruht 10 · Nachschlagen 0; ws und pb-adj seit 07.11. 18:10 im Extra-Regal;
+  die 4 Fälle ruhen seit 11.11., Zettel des Lehrers), 4 Schreib-Tränke und 4 Leseblätter auf Papier.
 
   FORTSCHRITT IST HEILIG: Die id einer Karte ist der Schlüssel zum gespeicherten Fortschritt. Nie ändern, nie
   wiederverwenden, gelöschte ids nicht neu vergeben. Texte, Antworten und Reihenfolge dürfen sich ändern.
@@ -12,15 +13,23 @@
   (erlaubt sind einzelne Satzanfänge und Wortlisten). Die Prüfung sucht nach den verbotenen Wörtern.
 
   format       2
-  test         { datum, titel, eingetragen } – offizieller Termin. eingetragen = ab da rechnet Legends HQ den Plan.
+  test         { datum, titel, eingetragen, extraPause? } – offizieller Termin. eingetragen = ab da rechnet Legends HQ den Plan.
+               extraPause: true = bis zu diesem Termin kommt nichts aus dem Extra-Regal (kein Extra in der Runde, kein „+1 Paket“)
+  neues        { id, titel, text, knopf, bis } – einmaliger Hinweis beim ersten Öffnen nach einem Update (bis = letzter Tag)
+  ruhen        { bereich, titel, bis, traenke, wieder } – Texte zur Reihe der ruhenden Tränke im Regal (Pakete mit rolle 'ruht')
   bereiche     die 3 Balken der Ziel-Karte, je ⅓: { id, titel, kurz, gewicht, papier? }
                papier = Anteil der 4 Schreib-Tränke am Balken (nur pb: 0.5, die andere Hälfte sind die Ziel-Karten)
 
   pakete       { id, bereich, titel, rolle, ab?, rang?, check?, thema?, regel?, quelle }
     rolle      'ziel' (zählt für Ziel-Karte, Ampel und 100 %) · 'extra' (Extra-Regal, zählt nicht) ·
-               'nachschlagen' (nie eingeplant; im Zauberbuch zu sehen, im freien Üben erlaubt)
+               'ruht' (zählt nicht und kommt nie dran, auch nicht im freien Üben; der Fortschritt bleibt und steht im Regal
+               in einer eigenen Reihe, so voll wie er war) · 'nachschlagen' (nie eingeplant; im Zauberbuch zu sehen, im
+               freien Üben erlaubt)
+    vorher     Paket, in dem die Karten dieses Pakets früher lagen (fb-faelle: fb-kern). Karten hier zählen dort weiter
+               als „begonnen“ (Zauberbuch) – ein Paketwechsel berührt so keinen Fortschritt.
     ab         nur ziel: frühester Tag, an dem das Paket neu kommt (ganz, mit Merkkarte; verpasste Tage holen nach)
-    rang       nur extra: Platz im Extra-Regal (1–5 wie lernmodell 2). Gleicher rang: Reihenfolge wie hier in der Datei
+    rang       nur extra: Platz im Extra-Regal (seit 11.11. nach dem Zettel des Lehrers: zuerst, was der Personenbeschreibung
+               hilft; fachdidaktik, lesen/stoff-aenderungen.md 4). Gleicher rang: Reihenfolge wie hier in der Datei
     check      Klasse im Blitz-Check: 'einzel' · 'regel' · 'auswahl'. Fehlt check (nur bl): je Karte, mit pool 'regel',
                sonst 'einzel'
     thema      für „höchstens 3 Karten desselben Themas hintereinander“; Standard = Paket-id
@@ -78,11 +87,23 @@
     teile      { trank-id: { bauplan, bausteine, checkliste, herzeigen: [3 Fragen, Ja / Noch nicht] } }
     ganzerText { checkliste } – kommt bei einem ganzen Text zu den Checklisten der vier Teile dazu
     auftraege  [{ id, ab, traenke, titel, text, minuten, wortspeicher: 'offen' | 'ueberarbeiten' | 'zu', ganz?, person?,
-               rateSpiel?, probe? }]
+               vorschlag?, rateSpiel?, probe?, lesen? }]
+               person = erfundene Figur mit Steckbrief als Empfehlung · vorschlag = empfohlene Wahl ohne Steckbrief
+               ('blatt' Figur von den Arbeitsblättern, 'bild' Bild von Mama oder Papa) · lesen = Leseblatt, das zur Probe
+               gehört (Teil 1; seine 4 Prüf-Punkte hängen hinten an der Checkliste, minuten kommen zu denen des Texts dazu)
+    lesen      Leseblätter auf Papier (seit 11.11., Zettel des Lehrers: Leseverständnis). Der Lesetext steht NICHT in der
+               App, das Blatt liegt ausgedruckt bei den Eltern. { siegel, fragen, merkkarte, checkliste, blaetter }
+      siegel   so viele Lese-Siegel gehören zu BEREIT (ein Siegel = Blatt gemacht und mit der Lösung verglichen)
+      fragen   Fragen je Blatt (die Eltern tippen beim Herzeigen 0 … fragen Punkte; die Zahl schaltet nichts frei)
+      merkkarte  id des Zauberbuch-Eintrags, der vom Auftrag aus antippbar ist
+      checkliste die 4 Punkte zum Selbstprüfen, für alle Blätter gleich – Zahl nie ändern (haken hängt am Index)
+      blaetter [{ id, blatt, ab, titel, minuten, text, ersatz? }] – wie ein Schreibauftrag der Schritt ② des Tages (ab).
+               Ein Blatt, das in einem Auftrag als lesen steht, ist Teil der Probe und kein eigener Schritt.
+               ersatz: true = nur als freiwilliger Knopf ab seinem Tag, solange ein Siegel fehlt
     personen   [{ id, name, steckbrief }] – erfundene Figuren, nur Steckbrief, kein Bild (stoff.md Anhang B)
     mustertext { titel, absaetze }
     wortspeicher [{ kategorie, woerter }] – Kategorien von oben nach unten, darin alphabetisch (nie wie auf den Blättern)
-  zauberbuch   [{ id, titel, html, pakete }] – Regelkarten zum Nachschlagen (stoff.md 1.2, 2.6, 3.1–3.3, 4).
+  zauberbuch   [{ id, titel, html, pakete? }] – Regelkarten zum Nachschlagen (stoff.md 1.2, 2.6, 3.1–3.3, 4).
                pakete = erst sichtbar, wenn alle diese Pakete begonnen haben (sonst verrät das Zauberbuch Antworten vor dem Blitz-Check)
 
   Rechtschreibung: Die App vergleicht genau – Groß/klein, ä/ö/ü und ß zählen. Vereinheitlicht werden nur Leerzeichen,
@@ -90,7 +111,13 @@
 */
 window.STOFF = {
   format: 2,
-  test: { datum: '2026-11-17', titel: 'Deutsch-Schularbeit', eingetragen: '2026-11-08' },
+  test: { datum: '2026-11-17', titel: 'Deutsch-Schularbeit', eingetragen: '2026-11-08', extraPause: true },
+
+  // Einmaliger Hinweis nach dem Update vom 11.11. (Zettel des Lehrers: Personenbeschreibung und Leseverständnis)
+  neues: { id: '2026-11-11', bis: '2026-11-16', titel: 'Neues zur Schularbeit', knopf: 'Alles klar',
+    text: 'Am Dienstag kommen die Personenbeschreibung und ein Lesetext, die 4 Fälle diesmal nicht. Deine Fall-Tränke ruhen im Regal, so voll wie du sie gefüllt hast – später im Schuljahr ist das dein Vorsprung. Dafür gibt es ab Freitag bei ② ein Leseblatt auf Papier.' },
+  // Die 4 Fälle kommen in dieser Schularbeit nicht (Zettel vom 11.11.): Pakete mit rolle 'ruht' stehen im Regal in einer eigenen Reihe
+  ruhen: { bereich: 'wortarten', titel: 'Die 4 Fälle', bis: 'ruhen bis nach der Schularbeit', traenke: 'Fall-Tränke', wieder: 'Die Fälle kommen später im Schuljahr wieder.' },
 
   // ================================================================
   // Bereiche – die 3 Balken der Ziel-Karte, je ⅓
@@ -115,61 +142,64 @@ window.STOFF = {
       regel: '<p><b>Steigerung:</b></p><ul><li>Grundstufe (Positiv)</li><li>Mehrstufe (Komparativ)</li><li>Meiststufe (Superlativ)</li></ul><p>Die Mehrstufe endet auf <b>-er</b>. Die Meiststufe hat <b>am</b> davor und endet auf <b>-sten</b>.</p><p>Viele kurze Wiewörter mit a, o oder u bekommen Pünktchen, aber nicht alle. Nach d, t, s, ß oder z heißt die Meiststufe meist -esten, aber nicht bei groß: am größten.</p><p>Im Heft stehen zwei Ausnahmen: gut und viel. „am“ und das Wiewort schreibst du klein.</p>' },
     { id: 'wa', bereich: 'wortarten', titel: 'Wortarten erkennen', rolle: 'ziel', ab: '2026-11-08', check: 'regel', quelle: 'Hauptwort, Zeitwort, Heft-Adj; Sätze eigenes',
       regel: '<p><b>Hauptwörter</b> (Nomen) benennen Namen, Tiere, Pflanzen, Gegenstände und Gefühle. Man schreibt sie groß.</p><p><b>Zeitwörter</b> (Verben) sagen, was jemand tut oder was passiert. <b>Wiewörter</b> (Adjektive) sagen, wie jemand oder etwas ist. Sie beschreiben auch Zeitwörter genauer: sie springt mutig.</p><p>Zeitwörter und Wiewörter schreibt man klein, außer am Satzanfang.</p>' },
-    { id: 'fb-kern', bereich: 'wortarten', titel: 'Fachwörter', rolle: 'ziel', ab: '2026-11-09', check: 'einzel', thema: 'fb', quelle: 'Heft-Adj, Fälle, Zeitwort, Verbformen' },
+    { id: 'fb-kern', bereich: 'wortarten', titel: 'Fachwörter', rolle: 'ziel', ab: '2026-11-09', check: 'einzel', thema: 'fb', quelle: 'Heft-Adj, Zeitwort, Verbformen' },
     { id: 'vg', bereich: 'wortarten', titel: 'als oder wie', rolle: 'ziel', ab: '2026-11-09', check: 'auswahl', quelle: 'Heft-als/wie; Sätze eigenes',
       regel: '<p><b>als oder wie?</b> Nach der Mehrstufe kommt <b>als</b>: größer als.</p><p>Nach „so“ oder „genauso“ und der Grundstufe kommt <b>wie</b>: so groß wie, auch bei „nicht so groß wie“.</p>' },
-    { id: 'no-fall', bereich: 'wortarten', titel: 'Die 4 Fälle', rolle: 'ziel', ab: '2026-11-10', check: 'regel', thema: 'faelle', quelle: 'Fälle (Aufbau wie im Heft); Sätze eigenes',
+    // ---- Ruht (seit 11.11.): Die 4 Fälle kommen in dieser Schularbeit nicht. Zählt nicht, kommt nie dran, Fortschritt bleibt ----
+    { id: 'no-fall', bereich: 'wortarten', titel: 'Die 4 Fälle', rolle: 'ruht', check: 'regel', thema: 'faelle', quelle: 'Fälle (Aufbau wie im Heft); Sätze eigenes',
       regel: '<table class="gtable"><tr><th>Fall</th><th>Frage</th></tr><tr><td>1. Fall (Nominativ)</td><td>Wer oder was?</td></tr><tr><td>2. Fall (Genitiv)</td><td>Wessen?</td></tr><tr><td>3. Fall (Dativ)</td><td>Wem?</td></tr><tr><td>4. Fall (Akkusativ)</td><td>Wen oder was?</td></tr></table><p>Im 2. Fall bekommen die meisten männlichen und sächlichen Hauptwörter -es oder -s: des Mannes, des Tieres. Im 3. Fall Mehrzahl endet das Hauptwort fast immer auf n.</p>' },
-    { id: 'no-fallb', bereich: 'wortarten', titel: 'Fall bestimmen', rolle: 'ziel', ab: '2026-11-10', check: 'regel', thema: 'faelle', quelle: 'Fälle; Sätze eigenes',
+    { id: 'no-fallb', bereich: 'wortarten', titel: 'Fall bestimmen', rolle: 'ruht', check: 'regel', thema: 'faelle', quelle: 'Fälle; Sätze eigenes',
       regel: '<p>Den Fall findest du mit der Frage:</p><table class="gtable formen"><tr><td>Wer oder was?</td><td>1. Fall</td></tr><tr><td>Wessen?</td><td>2. Fall</td></tr><tr><td>Wem?</td><td>3. Fall</td></tr><tr><td>Wen oder was?</td><td>4. Fall</td></tr></table>' },
+    { id: 'fb-faelle', bereich: 'wortarten', titel: 'Fachwörter: die 4 Fälle', rolle: 'ruht', vorher: 'fb-kern', check: 'einzel', thema: 'fb', quelle: 'Fälle' },
+    // ---- Ziel (weiter) ----
     { id: 'pb-schluss', bereich: 'pb', titel: 'Schluss', rolle: 'ziel', ab: '2026-11-11', check: 'einzel', quelle: '7a; pb-schluss-2 und -3 eigenes' },
     { id: 'vb-zeit', bereich: 'wortarten', titel: 'Zeitformen', rolle: 'ziel', ab: '2026-11-11', check: 'regel', quelle: 'Verbformen; Sätze eigenes',
       regel: '<p><b>4 Zeitformen</b></p><ul><li>Gegenwart (Präsens): Wir bauen ein Haus.</li><li>Mitvergangenheit (Präteritum), wenn wir schriftlich erzählen: Wir bauten ein Haus.</li><li>Vergangenheit (Perfekt), wenn wir mündlich erzählen: Wir haben ein Haus gebaut.</li><li>Zukunft (Futur): Wir werden ein Haus bauen.</li></ul>' },
     { id: 'vb-liste', bereich: 'wortarten', titel: 'Hilfs- und Modalverben', rolle: 'ziel', ab: '2026-11-11', check: 'einzel', quelle: 'Zeitwort',
       regel: '<p>Zeitwörter gibt es in <b>3 Arten</b>: Vollverben (laufen, schwimmen, arbeiten …), Hilfsverben und Modalverben.</p>' },
-    // ---- Extra-Regal: zählt nicht; Reihenfolge = lernmodell 2 (rang, dann wie hier) ----
-    { id: 'pb-kl', bereich: 'pb', titel: 'Kleidung zuordnen', rolle: 'extra', rang: 1, check: 'einzel', quelle: '6a (Wörter); Lösung fachdidaktik' },
-    { id: 'pb-wirk', bereich: 'pb', titel: 'Wirkung schreiben', rolle: 'extra', rang: 1, check: 'einzel', quelle: '7a, Text, Heft-Adj, eigenes' },
-    { id: 'bl', bereich: 'wortarten', titel: 'Buchstaben und Laute', rolle: 'extra', rang: 2, quelle: 'Laute' },
-    { id: 'pb-ein', bereich: 'pb', titel: 'Einleitung und „-jährige“', rolle: 'extra', rang: 3, check: 'regel', quelle: '4a, Text',
+    // ---- Extra-Regal: zählt nicht; Reihenfolge nach rang (seit 11.11. fachdidaktik: zuerst, was der Personenbeschreibung hilft), dann wie hier ----
+    { id: 'pb-kl', bereich: 'pb', titel: 'Kleidung zuordnen', rolle: 'extra', rang: 5, check: 'einzel', quelle: '6a (Wörter); Lösung fachdidaktik' },
+    { id: 'pb-wirk', bereich: 'pb', titel: 'Wirkung schreiben', rolle: 'extra', rang: 3, check: 'einzel', quelle: '7a, Text, Heft-Adj, eigenes' },
+    { id: 'bl', bereich: 'wortarten', titel: 'Buchstaben und Laute', rolle: 'extra', rang: 9, quelle: 'Laute' },
+    { id: 'pb-ein', bereich: 'pb', titel: 'Einleitung und „-jährige“', rolle: 'extra', rang: 6, check: 'regel', quelle: '4a, Text',
       regel: '<p>In die <b>Einleitung</b> gehören die allgemeinen Angaben: Name oder Beruf, Alter, Größe, Figur, wenn es passt die Hautfarbe.</p><p>Das Alter als Wiewort: Zahl, Bindestrich, klein: die 35-jährige Skilehrerin.</p>' },
-    { id: 'pb-praes', bereich: 'pb', titel: 'In die Gegenwart setzen', rolle: 'extra', rang: 3, check: 'regel', quelle: '4a („Präsens“); Sätze eigenes',
+    { id: 'pb-praes', bereich: 'pb', titel: 'In die Gegenwart setzen', rolle: 'extra', rang: 4, check: 'regel', quelle: '4a („Präsens“); Sätze eigenes',
       regel: '<p>Eine Beschreibung steht in der <b>Gegenwart (Präsens)</b>, denn die Person steht jetzt vor dir: Sie trägt eine Brille.</p>' },
-    { id: 'pb-verb', bereich: 'pb', titel: 'Zeitwörter statt hat und ist', rolle: 'extra', rang: 3, check: 'regel', quelle: 'Text; Sätze eigenes',
+    { id: 'pb-verb', bereich: 'pb', titel: 'Zeitwörter statt hat und ist', rolle: 'extra', rang: 1, check: 'regel', quelle: 'Text; Sätze eigenes',
       regel: '<p>Statt immer „hat“ und „ist“ nimmst du treffende Zeitwörter, alles in der Gegenwart (Präsens): Hinter der Brille <b>blitzen</b> blaue Augen. Der Mantel <b>reicht</b> bis zum Boden.</p>' },
-    { id: 'pb-tr', bereich: 'pb', titel: 'Kleidung im Satz', rolle: 'extra', rang: 3, check: 'regel', quelle: 'Text, 6a; Sätze eigenes',
+    { id: 'pb-tr', bereich: 'pb', titel: 'Kleidung im Satz', rolle: 'extra', rang: 2, check: 'regel', quelle: 'Text, 6a; Sätze eigenes',
       regel: '<p>Nach „trägt“:</p><table class="gtable"><tr><td>der →</td><td><b>einen</b> rot<b>en</b> Schal</td></tr><tr><td>die →</td><td><b>eine</b> blau<b>e</b> Weste</td></tr><tr><td>das →</td><td><b>ein</b> gelb<b>es</b> Kleid</td></tr><tr><td>Mehrzahl →</td><td>braun<b>e</b> Stiefel</td></tr></table><p>rosa und lila bleiben immer gleich: ein rosa Kleid.</p>' },
-    { id: 'st-aufbau', bereich: 'wortarten', titel: 'Steigerung (mehr)', rolle: 'extra', rang: 4, check: 'einzel', thema: 'st', quelle: 'Text, Wiewort, WS-G, WS-H; Sätze eigenes' },
-    { id: 'gt', bereich: 'wortarten', titel: 'Gegenteile', rolle: 'extra', rang: 4, check: 'einzel', quelle: 'Wiewort, WS-G, WS-H' },
-    { id: 'no-mz', bereich: 'wortarten', titel: 'Einzahl und Mehrzahl', rolle: 'extra', rang: 4, check: 'einzel', quelle: 'Hauptwort, 6a, WS-G, eigenes' },
-    { id: 'fb-rest', bereich: 'wortarten', titel: 'Fachwörter (mehr)', rolle: 'extra', rang: 4, check: 'einzel', thema: 'fb', quelle: 'Hauptwort, Zeitwort, Heft-Adj, Verbformen, 4a' },
-    { id: 'no-art', bereich: 'wortarten', titel: 'Begleiter und Geschlecht', rolle: 'extra', rang: 5, check: 'regel', quelle: 'Hauptwort, Text, 6a, eigenes',
+    { id: 'st-aufbau', bereich: 'wortarten', titel: 'Steigerung (mehr)', rolle: 'extra', rang: 10, check: 'einzel', thema: 'st', quelle: 'Text, Wiewort, WS-G, WS-H; Sätze eigenes' },
+    { id: 'gt', bereich: 'wortarten', titel: 'Gegenteile', rolle: 'extra', rang: 10, check: 'einzel', quelle: 'Wiewort, WS-G, WS-H' },
+    { id: 'no-mz', bereich: 'wortarten', titel: 'Einzahl und Mehrzahl', rolle: 'extra', rang: 10, check: 'einzel', quelle: 'Hauptwort, 6a, WS-G, eigenes' },
+    { id: 'fb-rest', bereich: 'wortarten', titel: 'Fachwörter (mehr)', rolle: 'extra', rang: 10, check: 'einzel', thema: 'fb', quelle: 'Hauptwort, Zeitwort, Heft-Adj, Verbformen, 4a' },
+    { id: 'no-art', bereich: 'wortarten', titel: 'Begleiter und Geschlecht', rolle: 'extra', rang: 11, check: 'regel', quelle: 'Hauptwort, Text, 6a, eigenes',
       regel: '<p>Am bestimmten Artikel siehst du das Geschlecht: der → männlich (maskulin), die → weiblich (feminin), das → sächlich (neutral).</p><p>Steht das Hauptwort in der Mehrzahl, bilde zuerst die Einzahl: die Stühle → der Stuhl → männlich.</p><p>Bestimmte Artikel: der, die, das. Unbestimmte Artikel: ein, eine.</p>' },
-    { id: 'no-ka', bereich: 'wortarten', titel: 'Konkreta und Abstrakta', rolle: 'extra', rang: 5, check: 'auswahl', quelle: 'Hauptwort, eigenes',
+    { id: 'no-ka', bereich: 'wortarten', titel: 'Konkreta und Abstrakta', rolle: 'extra', rang: 11, check: 'auswahl', quelle: 'Hauptwort, eigenes',
       regel: '<p><b>Konkreta</b> kannst du sehen, anfassen oder riechen. <b>Abstrakta</b> kannst du weder sehen noch anfassen, nur fühlen. Auch Abstrakta schreibt man groß.</p>' },
-    { id: 'no-zs', bereich: 'wortarten', titel: 'Hauptwörter zusammensetzen', rolle: 'extra', rang: 5, check: 'regel', quelle: 'Hauptwort, 6a, eigenes',
+    { id: 'no-zs', bereich: 'wortarten', titel: 'Hauptwörter zusammensetzen', rolle: 'extra', rang: 11, check: 'regel', quelle: 'Hauptwort, 6a, eigenes',
       regel: '<p>der Schnee + der Mann = der Schneemann. Der Begleiter kommt vom <b>letzten</b> Wort.</p>' },
-    { id: 'vb-art', bereich: 'wortarten', titel: 'Arten des Zeitworts', rolle: 'extra', rang: 5, check: 'regel', quelle: 'Zeitwort',
+    { id: 'vb-art', bereich: 'wortarten', titel: 'Arten des Zeitworts', rolle: 'extra', rang: 11, check: 'regel', quelle: 'Zeitwort',
       regel: '<p><b>3 Arten:</b></p><ul><li>Vollverben: laufen, schwimmen, arbeiten …</li><li>Hilfsverben: haben, sein, werden („die Hilfsverben auf Erden“)</li><li>Modalverben: dürfen, können, mögen, müssen, sollen, wollen</li></ul>' },
-    { id: 'vb-stamm', bereich: 'wortarten', titel: 'Stammformen schwacher Verben', rolle: 'extra', rang: 5, check: 'regel', quelle: 'Zeitwort, Verbformen, eigenes',
+    { id: 'vb-stamm', bereich: 'wortarten', titel: 'Stammformen schwacher Verben', rolle: 'extra', rang: 11, check: 'regel', quelle: 'Zeitwort, Verbformen, eigenes',
       regel: '<p><b>3 Stammformen:</b></p><table class="gtable formen"><tr><td>Nennform<br><i>Infinitiv</i></td><td>spielen</td></tr><tr><td>Mitvergangenheit<br><i>Präteritum</i></td><td>spielte</td></tr><tr><td>2. Mittelwort<br><i>Partizip Perfekt</i></td><td>gespielt</td></tr></table><p>Schwache Verben bekommen in der Mitvergangenheit -te: kaufen – kaufte – gekauft.</p>' },
-    { id: 'vb-ss', bereich: 'wortarten', titel: 'Stark oder schwach', rolle: 'extra', rang: 5, check: 'auswahl', quelle: 'Zeitwort, eigenes',
+    { id: 'vb-ss', bereich: 'wortarten', titel: 'Stark oder schwach', rolle: 'extra', rang: 11, check: 'auswahl', quelle: 'Zeitwort, eigenes',
       regel: '<p><b>Starke Verben</b> ändern in der Mitvergangenheit den Selbstlaut. <b>Schwache Verben</b> bekommen in der Mitvergangenheit -te.</p>' },
-    { id: 'vb-pers', bereich: 'wortarten', titel: 'Personalform', rolle: 'extra', rang: 5, check: 'regel', quelle: 'Verbformen, eigenes',
+    { id: 'vb-pers', bereich: 'wortarten', titel: 'Personalform', rolle: 'extra', rang: 11, check: 'regel', quelle: 'Verbformen, eigenes',
       regel: '<p><b>Personalform (finite Form):</b> So steht das Zeitwort im Satz. Es passt sich an Person und Zeit an: ich gehe, du gehst, er/sie/es geht, wir gehen, ihr geht, sie gehen.</p>' },
-    { id: 'vb-person', bereich: 'wortarten', titel: 'Person bestimmen', rolle: 'extra', rang: 5, check: 'regel', quelle: 'Verbformen',
+    { id: 'vb-person', bereich: 'wortarten', titel: 'Person bestimmen', rolle: 'extra', rang: 11, check: 'regel', quelle: 'Verbformen',
       regel: '<table class="gtable"><tr><th></th><th>Einzahl</th><th>Mehrzahl</th></tr><tr><td>1. Person</td><td>ich</td><td>wir</td></tr><tr><td>2. Person</td><td>du</td><td>ihr</td></tr><tr><td>3. Person</td><td>er, sie, es</td><td>sie</td></tr></table>' },
-    { id: 'vb-bef', bereich: 'wortarten', titel: 'Befehlsform', rolle: 'extra', rang: 5, check: 'regel', quelle: 'Verbformen, eigenes',
+    { id: 'vb-bef', bereich: 'wortarten', titel: 'Befehlsform', rolle: 'extra', rang: 11, check: 'regel', quelle: 'Verbformen, eigenes',
       regel: '<p><b>Befehlsform (Imperativ):</b> Einzahl: Komm! Mehrzahl: Kommt! Bei manchen Verben wird aus e ein i oder ie: Hilf! Lies! Gib!</p>' },
-    { id: 'bf', bereich: 'wortarten', titel: 'Beifügung oder allein', rolle: 'extra', rang: 5, check: 'regel', quelle: 'Wiewort; Sätze eigenes',
+    { id: 'bf', bereich: 'wortarten', titel: 'Beifügung oder allein', rolle: 'extra', rang: 11, check: 'regel', quelle: 'Wiewort; Sätze eigenes',
       regel: '<p>Steht das Wiewort vor dem Hauptwort, ist es eine <b>Beifügung</b> und bekommt eine Endung: die rote Jacke. Steht es <b>allein</b>, meist nach ist oder sind, hat es keine Endung: Die Jacke ist rot.</p>' },
-    { id: 'ns', bereich: 'wortarten', titel: 'Wiewörter mit Nachsilben', rolle: 'extra', rang: 5, check: 'regel', quelle: 'Wiewort, 7a, WS-G, WS-H, eigenes',
+    { id: 'ns', bereich: 'wortarten', titel: 'Wiewörter mit Nachsilben', rolle: 'extra', rang: 11, check: 'regel', quelle: 'Wiewort, 7a, WS-G, WS-H, eigenes',
       regel: '<p>Mit -ig, -isch, -lich, -sam, -bar, -los, -haft wird aus einem Hauptwort oder Zeitwort ein Wiewort: Angst → ängstlich, lachen → lachhaft. Dann schreibst du es klein. Oft kommt ein Umlaut dazu: Kraft → kräftig.</p>' },
-    { id: 'zs', bereich: 'wortarten', titel: 'Wiewörter zusammensetzen', rolle: 'extra', rang: 5, check: 'regel', quelle: 'Wiewort, WS-H, eigenes',
+    { id: 'zs', bereich: 'wortarten', titel: 'Wiewörter zusammensetzen', rolle: 'extra', rang: 11, check: 'regel', quelle: 'Wiewort, WS-H, eigenes',
       regel: '<p>Stein + hart = steinhart (so hart wie ein Stein). Zusammen und klein schreiben.</p>' },
     // ---- Nachschlagen: nie eingeplant ----
-    { id: 'pb-adj', bereich: 'pb', titel: 'Wortspeicher zuordnen', rolle: 'extra', rang: 6, check: 'regel', quelle: 'WS-G, WS-H' },
-    { id: 'ws', bereich: 'pb', titel: 'Wortspeicher schreiben', rolle: 'extra', rang: 6, check: 'einzel', quelle: 'WS-G, WS-H' }
+    { id: 'pb-adj', bereich: 'pb', titel: 'Wortspeicher zuordnen', rolle: 'extra', rang: 8, check: 'regel', quelle: 'WS-G, WS-H' },
+    { id: 'ws', bereich: 'pb', titel: 'Wortspeicher schreiben', rolle: 'extra', rang: 7, check: 'einzel', quelle: 'WS-G, WS-H' }
   ],
 
   // ================================================================
@@ -844,20 +874,21 @@ window.STOFF = {
     { id: 'vg-r1', paket: 'vg', pool: 'vg' },
     { id: 'vg-r2', paket: 'vg', pool: 'vg' },
     { id: 'vg-r3', paket: 'vg', pool: 'vg' },
-    // Fachwörter (fb-kern): deutsch → Latein, Variante Latein → deutsch; bei den Fällen mit Frage
+    // Fachwörter (fb-kern): deutsch → Latein, Variante Latein → deutsch. Die 4 Fälle (fb-fall1…4, mit Frage) liegen seit 11.11.
+    // im Paket fb-faelle (ruht); ihre ids bleiben.
     { id: 'fb-grundstufe', paket: 'fb-kern', typ: 'tippen', frage: 'Wie heißt das Fachwort auf Latein?', wort: 'Grundstufe', felder: [{ label: 'Latein', antwort: 'Positiv' }],
       quelle: 'Heft-Adj', varianten: [{ typ: 'tippen', frage: 'Wie heißt das Fachwort auf Deutsch?', wort: 'Positiv', felder: [{ label: 'deutsch', antwort: 'Grundstufe' }] }] },
     { id: 'fb-mehrstufe', paket: 'fb-kern', typ: 'tippen', frage: 'Wie heißt das Fachwort auf Latein?', wort: 'Mehrstufe', felder: [{ label: 'Latein', antwort: 'Komparativ' }],
       tipp: 'Sprich in Silben: Kom-pa-ra-tiv. Nach dem K kommt kein r.', quelle: 'Heft-Adj', varianten: [{ typ: 'tippen', frage: 'Wie heißt das Fachwort auf Deutsch?', wort: 'Komparativ', felder: [{ label: 'deutsch', antwort: 'Mehrstufe' }] }] },
     { id: 'fb-meiststufe', paket: 'fb-kern', typ: 'tippen', frage: 'Wie heißt das Fachwort auf Latein?', wort: 'Meiststufe', felder: [{ label: 'Latein', antwort: 'Superlativ' }],
       quelle: 'Heft-Adj', varianten: [{ typ: 'tippen', frage: 'Wie heißt das Fachwort auf Deutsch?', wort: 'Superlativ', felder: [{ label: 'deutsch', antwort: 'Meiststufe' }] }] },
-    { id: 'fb-fall1', paket: 'fb-kern', typ: 'tippen', frage: 'Wie heißt der Fall auf Latein, und wie fragst du nach ihm?', wort: '1. Fall', felder: [{ label: 'Latein', antwort: 'Nominativ' }, { label: 'Frage', antwort: ['Wer oder was?', 'Wer oder Was?'] }],
+    { id: 'fb-fall1', paket: 'fb-faelle', typ: 'tippen', frage: 'Wie heißt der Fall auf Latein, und wie fragst du nach ihm?', wort: '1. Fall', felder: [{ label: 'Latein', antwort: 'Nominativ' }, { label: 'Frage', antwort: ['Wer oder was?', 'Wer oder Was?'] }],
       quelle: 'Fälle', varianten: [{ typ: 'tippen', frage: 'Welcher Fall ist das, und wie fragst du nach ihm?', wort: 'Nominativ', felder: [{ label: 'Fall', antwort: ['1. Fall', '1.Fall'] }, { label: 'Frage', antwort: ['Wer oder was?', 'Wer oder Was?'] }] }] },
-    { id: 'fb-fall2', paket: 'fb-kern', typ: 'tippen', frage: 'Wie heißt der Fall auf Latein, und wie fragst du nach ihm?', wort: '2. Fall', felder: [{ label: 'Latein', antwort: 'Genitiv' }, { label: 'Frage', antwort: ['Wessen?'] }],
+    { id: 'fb-fall2', paket: 'fb-faelle', typ: 'tippen', frage: 'Wie heißt der Fall auf Latein, und wie fragst du nach ihm?', wort: '2. Fall', felder: [{ label: 'Latein', antwort: 'Genitiv' }, { label: 'Frage', antwort: ['Wessen?'] }],
       quelle: 'Fälle', varianten: [{ typ: 'tippen', frage: 'Welcher Fall ist das, und wie fragst du nach ihm?', wort: 'Genitiv', felder: [{ label: 'Fall', antwort: ['2. Fall', '2.Fall'] }, { label: 'Frage', antwort: ['Wessen?'] }] }] },
-    { id: 'fb-fall3', paket: 'fb-kern', typ: 'tippen', frage: 'Wie heißt der Fall auf Latein, und wie fragst du nach ihm?', wort: '3. Fall', felder: [{ label: 'Latein', antwort: 'Dativ' }, { label: 'Frage', antwort: ['Wem?'] }],
+    { id: 'fb-fall3', paket: 'fb-faelle', typ: 'tippen', frage: 'Wie heißt der Fall auf Latein, und wie fragst du nach ihm?', wort: '3. Fall', felder: [{ label: 'Latein', antwort: 'Dativ' }, { label: 'Frage', antwort: ['Wem?'] }],
       quelle: 'Fälle', varianten: [{ typ: 'tippen', frage: 'Welcher Fall ist das, und wie fragst du nach ihm?', wort: 'Dativ', felder: [{ label: 'Fall', antwort: ['3. Fall', '3.Fall'] }, { label: 'Frage', antwort: ['Wem?'] }] }] },
-    { id: 'fb-fall4', paket: 'fb-kern', typ: 'tippen', frage: 'Wie heißt der Fall auf Latein, und wie fragst du nach ihm?', wort: '4. Fall', felder: [{ label: 'Latein', antwort: 'Akkusativ' }, { label: 'Frage', antwort: ['Wen oder was?', 'Wen oder Was?'] }],
+    { id: 'fb-fall4', paket: 'fb-faelle', typ: 'tippen', frage: 'Wie heißt der Fall auf Latein, und wie fragst du nach ihm?', wort: '4. Fall', felder: [{ label: 'Latein', antwort: 'Akkusativ' }, { label: 'Frage', antwort: ['Wen oder was?', 'Wen oder Was?'] }],
       quelle: 'Fälle', varianten: [{ typ: 'tippen', frage: 'Welcher Fall ist das, und wie fragst du nach ihm?', wort: 'Akkusativ', felder: [{ label: 'Fall', antwort: ['4. Fall', '4.Fall'] }, { label: 'Frage', antwort: ['Wen oder was?', 'Wen oder Was?'] }] }] },
     { id: 'fb-nennform', paket: 'fb-kern', typ: 'tippen', frage: 'Wie heißt das Fachwort auf Latein?', wort: 'Nennform', felder: [{ label: 'Latein', antwort: 'Infinitiv' }],
       quelle: 'Zeitwort, Verbformen', varianten: [{ typ: 'tippen', frage: 'Wie heißt das Fachwort auf Deutsch?', wort: 'Infinitiv', felder: [{ label: 'deutsch', antwort: 'Nennform' }] }] },
@@ -1205,13 +1236,13 @@ window.STOFF = {
       'pb-trank-kopf': {
         bauplan: ['wenn es passt: Kopfbedeckung', 'Haare (Farbe, Frisur) und Gesichtsform', 'Stirn, Augenbrauen, Augen', 'Nase', 'Mund', 'Ohren (oder gleich nach den Augen)', 'Hals'],
         bausteine: ['Ihre / Seine … Haare fallen bis …', '… Haare umrahmen ihr … Gesicht.', 'Unter der … Stirn wachsen … Augenbrauen.', 'Hinter der Brille blitzen …', 'In der Mitte des Gesichts sitzt eine … Nase.', 'Sie / Er lächelt mit … Lippen.', 'An den Ohren baumeln …', 'Um den Hals trägt sie …', 'Zeitwörter statt hat und ist: tragen · anhaben · sitzen · umrahmen · fallen · reichen (bis) · wachsen · funkeln · leuchten · blitzen · strahlen · schmücken · baumeln · bedecken · stecken (in) · halten · wirken · aussehen'],
-        checkliste: ['von oben nach unten, was man sieht: Kopfbedeckung → Haare (Farbe, Frisur) und Gesichtsform → Stirn, Augenbrauen, Augen → Nase → Mund → Ohren → Hals (die Ohren dürfen auch gleich nach den Augen kommen)', 'wenn es passt: Brille und Schmuck dort, wo sie sind (Brille meist bei den Augen, Ohrringe an den Ohren, Kette am Hals)', 'zu jedem Teil ein genaues Wiewort, das man sieht (gelockt, buschig, spitz), nicht schön oder toll'],
+        checkliste: ['von oben nach unten, was man sieht: Kopfbedeckung → Haare (Farbe, Frisur) und Gesichtsform → Stirn, Augenbrauen, Augen → Nase → Mund → Ohren → Hals (die Ohren dürfen auch gleich nach den Augen kommen)', 'wenn es passt: Brille und Schmuck dort, wo sie sind (Brille meist bei den Augen, Ohrringe an den Ohren, Kette am Hals)', 'zu jedem Teil ein genaues Wiewort, das man sieht (gelockt, buschig, spitz), nicht schön oder toll; bei den Haaren mindestens zwei Angaben: Farbe und Länge oder Frisur'],
         herzeigen: ['Von oben nach unten, von den Haaren bis zum Hals?', 'Zu jedem Teil ein genaues Wiewort (buschige Augenbrauen, spitze Nase)?', 'Nur, was man sieht, ohne eigene Meinung?']
       },
       'pb-trank-kleid': {
         bauplan: ['Oberkörper', 'Unterkörper', 'Socken und Schuhe', 'wenn es passt: was die Person in der Hand oder unter dem Arm hält'],
         bausteine: ['Über … trägt sie …', 'Dazu trägt er …', 'Ihre Beine stecken in …', 'An den Füßen trägt …', 'In der Hand hält …', 'Zeitwörter statt hat und ist: tragen · anhaben · sitzen · umrahmen · fallen · reichen (bis) · wachsen · funkeln · leuchten · blitzen · strahlen · schmücken · baumeln · bedecken · stecken (in) · halten · wirken · aussehen'],
-        checkliste: ['von oben nach unten, was man sieht: Oberkörper → Unterkörper → Socken und Schuhe · Schal nur einmal: beim Hals oder hier', 'bei jedem Stück Farbe oder Wiewort', 'wenn es passt: was die Person in der Hand oder unter dem Arm hält', 'nicht dreimal „sie hat“'],
+        checkliste: ['von oben nach unten, was man sieht: Oberkörper → Unterkörper → Socken und Schuhe · Schal nur einmal: beim Hals oder hier', 'bei jedem Stück Farbe oder Wiewort; bei mindestens zwei Stücken noch ein Detail: Muster, Stoff oder „mit …“ (eine rote Jacke mit goldenen Knöpfen)', 'wenn es passt: was die Person in der Hand oder unter dem Arm hält', 'nicht dreimal „sie hat“'],
         herzeigen: ['Von oben nach unten bis zu den Schuhen?', 'Bei jedem Stück eine Farbe oder ein Wiewort?', 'Verschiedene Zeitwörter statt immer „hat“ (trägt, steckt, hält)?']
       },
       'pb-trank-schluss': {
@@ -1231,11 +1262,27 @@ window.STOFF = {
         text: 'Heute die Kleidung, von oben nach unten bis zu den Schuhen, und was die Person in der Hand hält (wenn sie etwas hält).' },
       { id: 'pb-papier-1d', ab: '2026-11-11', traenke: ['pb-trank-schluss'], titel: 'Schreibauftrag 4 von 4: Schluss', minuten: 6, wortspeicher: 'offen',
         text: 'Heute der Schluss: kurz, mit einem besonderen Kennzeichen und wie die Person auf dich wirkt.' },
-      { id: 'pb-papier-2', ab: '2026-11-12', traenke: ['pb-trank-ein', 'pb-trank-kopf', 'pb-trank-kleid', 'pb-trank-schluss'], titel: 'Ganzer Text: Wen beschreibe ich?', ganz: true, wortspeicher: 'ueberarbeiten', person: 'balduin', minuten: 30, rateSpiel: true,
-        text: 'Beschreib den Zauberer Balduin ganz: Einleitung, Kopf und Gesicht, Kleidung, Schluss. Oder such dir heimlich eine Person aus und lass Mama oder Papa raten. Den Wortspeicher erst zum Überarbeiten. Du darfst in zwei Teilen schreiben.' },
-      { id: 'pb-papier-3', ab: '2026-11-14', traenke: ['pb-trank-ein', 'pb-trank-kopf', 'pb-trank-kleid', 'pb-trank-schluss'], titel: 'Probe: ganze Personenbeschreibung', ganz: true, wortspeicher: 'zu', person: 'wedel', minuten: 40, probe: true,
-        text: 'Die Probe wie in der Schularbeit: Beschreib die Skilehrerin Frau Wedel, oder Papa oder Oma. Am Stück, ohne Hilfen, höchstens 40 Minuten.' }
+      { id: 'pb-papier-2', ab: '2026-11-12', traenke: ['pb-trank-ein', 'pb-trank-kopf', 'pb-trank-kleid', 'pb-trank-schluss'], titel: 'Ganzer Text: Wen beschreibe ich?', ganz: true, wortspeicher: 'ueberarbeiten', vorschlag: 'blatt', minuten: 30, rateSpiel: true,
+        text: 'Beschreib heute eine Person nach einem Bild, ganz: Einleitung, Kopf und Gesicht, Kleidung, Schluss. Nimm eine Figur von deinen Arbeitsblättern, die man von Kopf bis Fuß sieht. Fahr am Bild mit dem Finger von oben nach unten und schreib zu jeder Station ein Stichwort. Lass Mama oder Papa danach raten, welche Figur es ist. Den Wortspeicher erst zum Überarbeiten. Du darfst in zwei Teilen schreiben.' },
+      { id: 'pb-papier-3', ab: '2026-11-14', traenke: ['pb-trank-ein', 'pb-trank-kopf', 'pb-trank-kleid', 'pb-trank-schluss'], titel: 'Probe: ganze Personenbeschreibung', ganz: true, wortspeicher: 'zu', vorschlag: 'bild', minuten: 28, probe: true, lesen: 'le-papier-2',
+        text: 'Die Probe wie in der Schularbeit. Zuerst kommt Leseblatt 2, dann beschreibst du die Person auf einem Bild, das Mama oder Papa aussucht. Fahr am Bild mit dem Finger von oben nach unten und schreib zu jeder Station ein Stichwort. Dann schreib am Stück und ohne Hilfen. Plan und Text zusammen höchstens 28 Minuten.' }
     ],
+    // Leseblätter auf Papier (fachdidaktik 11.11., lesen/stoff-aenderungen.md 5; Ton: motivation-spiel). Der Lesetext steht nicht
+    // in der App. Blatt 2 gehört zur Probe (pb-papier-3, lesen), Blatt 4 ist nur Ersatz. checkliste: Zahl der Punkte nie ändern.
+    lesen: {
+      siegel: 3, fragen: 6, merkkarte: 'zb-lesen',
+      checkliste: ['zuerst den ganzen Text gelesen, dann die Fragen', 'in jeder Frage das Fragewort unterstrichen', 'zu jeder Antwort die Stelle im Text unterstrichen', 'ganze Sätze, Satzanfang groß, Punkt; keine Aufgabe leer'],
+      blaetter: [
+        { id: 'le-papier-1', blatt: 1, ab: '2026-11-13', titel: 'Leseblatt 1: gemeinsam mit der Merkkarte', minuten: 12,
+          text: 'Hol dir Leseblatt 1 und einen Stift von Mama oder Papa. Schau zuerst auf die Merkkarte „So knackst du einen Lesetext“. Heute gemeinsam, Schritt für Schritt: Ihr geht das Blatt nach der Merkkarte durch, ohne Uhr. Das Handy bleibt liegen.' },
+        { id: 'le-papier-2', blatt: 2, ab: '2026-11-14', titel: 'Leseblatt 2: Probe, Teil 1', minuten: 12,
+          text: 'Die Probe beginnt mit dem Lesen: Hol dir Leseblatt 2 von Mama oder Papa. Arbeite allein, ungefähr 12 Minuten. Danach kommt gleich die Personenbeschreibung.' },
+        { id: 'le-papier-3', blatt: 3, ab: '2026-11-15', titel: 'Leseblatt 3: allein mit Uhr', minuten: 12,
+          text: 'Hol dir Leseblatt 3 und einen Stift von Mama oder Papa. Schau zuerst auf die Merkkarte „So knackst du einen Lesetext“. Stell eine Uhr auf 12 Minuten. Heute schaffst du es allein, danach zeigst du es Mama oder Papa. Das Handy bleibt liegen.' },
+        { id: 'le-papier-4', blatt: 4, ab: '2026-11-16', titel: 'Leseblatt 4: Reserve', minuten: 12, ersatz: true,
+          text: 'Leseblatt 4 gibt es nur, wenn Mama oder Papa es dir heute geben. Dann wie beim letzten Blatt: Schau zuerst auf die Merkkarte „So knackst du einen Lesetext“, arbeite allein, Uhr auf 12 Minuten. Das Handy bleibt liegen.' }
+      ]
+    },
     // erfundene Figuren, nur als Steckbrief (stoff.md Anhang B)
     personen: [
       { id: 'mira', name: 'Stuntfrau Mira Sturm',
@@ -1279,6 +1326,9 @@ window.STOFF = {
   zauberbuch: [
     { id: 'zb-pb-aufbau', pakete: ['pb-teil'], titel: 'So baust du eine Personenbeschreibung',
       html: '<ul><li><b>Einleitung:</b> Wer ist das? Name oder Beruf, Alter, Größe, Figur.</li><li><b>Hauptteil 1:</b> Kopf und Gesicht, von oben nach unten.</li><li><b>Hauptteil 2:</b> Kleidung von oben nach unten bis zu den Schuhen, dazu, was die Person in der Hand hält (wenn sie etwas hält).</li><li><b>Schluss:</b> kurz. Was fällt besonders auf? Wie wirkt die Person auf dich?</li></ul><p>Schreib in der Gegenwart (Präsens): sie trägt. Beschreib nur, was man sieht. Deine Meinung kommt in den Schluss.</p>' },
+    // Merkkarte fürs Leseverständnis (fachdidaktik 11.11., lesen/merkkarte.md): ohne pakete, also immer lesbar
+    { id: 'zb-lesen', titel: 'So knackst du einen Lesetext',
+      html: '<ul><li><b>Lies zuerst den ganzen Text in Ruhe</b>, auch die Überschrift. Erst dann die Fragen.</li><li><b>Lies jede Frage genau</b> und unterstreich das Fragewort: Wer? Wo? Warum? Woran?</li><li><b>Such die Stelle im Text</b> und unterstreich sie. Die Antwort steht im Text, nicht in deinem Kopf. Beim Ankreuzen: jedes Wort und jede Zahl nachschauen.</li><li><b>Antworte in einem ganzen Satz</b> und nimm Wörter aus der Frage mit. Zum Schluss: Ist jede Aufgabe gemacht? Satzanfang groß, Punkt.</li></ul>' },
     { id: 'zb-v-formen', pakete: ['v', 'fb-kern'], titel: 'Drei Formen auf dem Blatt',
       html: '<table class="gtable formen"><tr><td>Nennform<br><i>Infinitiv</i></td><td>sinken</td></tr><tr><td>Mitvergangenheit<br><i>Präteritum</i></td><td>er sank</td></tr><tr><td>Vergangenheit<br><i>Perfekt</i></td><td>er ist gesunken</td></tr></table><p>Unregelmäßig heißt: Die Formen ändern sich, meist der Selbstlaut. Darum lernst du die Reihe auswendig und sagst sie halblaut: sinken – sank – gesunken.</p>' },
     { id: 'zb-v-hat-ist', pakete: ['v'], titel: 'hat oder ist?',

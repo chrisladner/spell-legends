@@ -8,15 +8,33 @@ sobald sie einmal geöffnet wurde. Gerüst nach Word Legends (`wl-v6`).
 „Spell“ heißt Zauberspruch und buchstabieren. Die internen Kennungen bleiben `dl` (`deutschlegends.v1`, `DL1:`,
 Cache `dl-…`): Sie benennen das Fach, daran hängt der Fortschritt – nie ändern.
 
-**Stand `dl-v7`** (`dl-v2` = erste veröffentlichte Version, 07.11.2026; `dl-v3`: Regelkarten mit Formen untereinander,
+**Stand `dl-v8`** (11.11.2026, Zettel des Lehrers: Personenbeschreibung „von Kopf bis Fuß detailliert“ und
+Leseverständnis – siehe „dl-v8“ unten; `dl-v2` = erste veröffentlichte Version, 07.11.2026; `dl-v3`: Regelkarten mit Formen untereinander,
 Abfrage passt über die Tastatur; `dl-v4`: Tage vor dem Plan-Start zählen nie als ausgelassen, Merker `vs` im Protokoll;
 `dl-v5`: klarer Tagesauftrag – Kasten „Deine Mission heute“ mit ① Runde und ② Schreiben, Rundenende „Etappe 1 von 2“,
 bedingte Punkte in der Checkliste, Bericht sagt Legends HQ, was heute offen ist; `dl-v6`: Checkliste „ganzer Text“
 nennt beim Beistrich auch den Einschub, neuer Satzanfang „Die Person, die ich beschreibe, ist …“; `dl-v7`: Checklisten Kopf, Kleidung und ganzer Text genauer
 – Wiewort, das man sieht, Brille bei den Augen, Ohren auch nach den Augen, Schal nur einmal, Satzanfänge groß –, dazu
 ein Satzanfang für den Mund). Grundlage:
-`auftraege/2026-11-07_deutsch-app.md` (Abschnitt 5, Entscheidung „Klarer Tagesauftrag“ vom 08.11.2026) und
-`auftraege/2026-11-07_deutsch-app/bauauftrag.md`.
+`auftraege/2026-11-07_deutsch-app.md` (Abschnitt 5, Entscheidung „Klarer Tagesauftrag“ vom 08.11.2026 und die drei
+Zeilen vom 11.11.2026) und `auftraege/2026-11-07_deutsch-app/bauauftrag.md`.
+
+## dl-v8: Fälle ruhen, Lesen auf Papier, Probe-Schularbeit (11.11.2026)
+
+| Was | Umsetzung |
+|---|---|
+| Die 4 Fälle ruhen | Pakete `no-fall`, `no-fallb` und das neue `fb-faelle` (die Karten `fb-fall1…4`, ids unverändert, vorher in `fb-kern`) haben die Rolle **`ruht`**: Sie zählen nicht zum Ziel (249 → 239) und kommen nie dran – nicht in der Runde, nicht am Testtag, nicht im freien Üben. `S.k` bleibt unberührt. Im Regal stehen sie am Ende des Bretts „Wortarten“ in einer eigenen Reihe „Die 4 Fälle · ruhen bis nach der Schularbeit“ (`ruhReiheHTML`), so voll wie zuvor, nicht grau, nichts verdunstet (`stufeZiel`), „erarbeitet“ sinkt nicht. Antippen: „Ruht bis nach der Schularbeit. Dein Stand bleibt: … Die Fälle kommen später im Schuljahr wieder.“ Balken-Detail: „10 Fall-Tränke ruhen und zählen bis zur Schularbeit nicht mit.“ Texte dazu in `stoff.js` → `ruhen`. Im Lagebericht stehen ruhende Karten nicht (wie Nachschlagen). `vorher: 'fb-kern'` am neuen Paket hält „begonnen“ für das alte Paket fest (Zauberbuch) |
+| Keine Feier durch das Update | Titel und BEREIT hält `home()` still fest (wie bisher), „über der Ziellinie!“ vergleicht nur innerhalb einer Runde. BEREIT kann durch das Update nicht entstehen, weil es jetzt Lese-Siegel braucht |
+| Extra macht Pause | `stoff.js` → `test.extraPause: true`: bis zum offiziellen Termin nichts aus dem Extra-Regal – kein Fälliges und kein Neues in der Runde, kein „+1 Paket“, auch nicht beim Aufwärmen am Testtag (`extraPause()`). Extra-Tränke verdunsten in der Zeit nicht. Nach der Mission und im Regal: „Extra macht Pause bis nach der Schularbeit.“ Freies Üben bleibt. Ab dem Tag nach dem Test läuft Extra wieder |
+| Lesen als Schritt ② | `stoff.js` → `schreiben.lesen`: 4 Leseblätter (`le-papier-1…4`). Der Lesetext steht **nicht** in der App. Schreibaufträge und Leseblätter stehen in einer Reihe (`PAPIER`): ein Papier-Auftrag pro Tag, der erste offene ist ②. Blatt 1 ab Fr 13.11., Blatt 3 ab So 15.11.; Blatt 2 gehört zur Probe; Blatt 4 ist Ersatz. Ablauf wie beim Schreibauftrag: Auftrag (Merkkarte antippbar) → auf Papier → selbst prüfen (4 Punkte) → herzeigen. Ein Leseblatt füllt keinen Trank, zählt nicht fürs Ziel und ist nicht `ganz` |
+| Punkte beim Herzeigen | Mama oder Papa tippen 0–6 („Geht die 6 Fragen mit dem Lösungsblatt durch. Wie viele stimmen?“, „Die Zahl ändert nichts an den Tränken.“, „Halbe Punkte bitte abrunden.“). Die Zahl wird nur gespeichert (`herz: [{ tag, punkte }]`), schaltet nichts frei, geht nicht an Legends HQ, und das Kind sieht nie einen Vergleich. Danach einer von drei Sätzen (5–6 · 3–4 · 0–2) und „Lese-Siegel N von 3!“ |
+| Lese-Siegel und BEREIT | Unter den drei Balken die Zeile „Lesen ● ○ ○“ (kein Balken, keine Prozent). Ein Siegel = Leseblatt gemacht **und** hergezeigt, nie nach Punkten (`leseSiegel()`). BEREIT verlangt zusätzlich 3 Siegel; ein schon verdientes BEREIT (`S.ui.bereit`) bleibt. Fehlen nur Siegel: „Alle drei Balken sind über der Ziellinie. Für BEREIT fehlt noch 1 Lese-Siegel.“ Bringt das dritte Siegel BEREIT, wird gleich beim Herzeigen gefeiert. Die große Prozentzahl ändert sich durch Lesen nicht |
+| Ersatz-Blatt | Leseblatt 4 erscheint nur als freiwilliger Knopf unter dem Kasten, ab Mo 16.11. und vor dem Testtag, solange ein Siegel fehlt (ein Blatt, das nur aufs Herzeigen wartet, zählt dabei schon). Es ersetzt nicht den Papier-Auftrag des Tages |
+| Probe-Schularbeit | `pb-papier-3` mit `lesen: 'le-papier-2'`: Teil 1 Leseblatt 2 (12 Min.), Teil 2 Personenbeschreibung (28 Min.), zusammen 40 Min. Die Uhr zählt mit (nur ganze Minuten, kein Countdown, bricht nichts ab); ihr Start steht im Speicher (`uhr`), nach einer Pause oder einem Neustart geht es beim Schreiben weiter. Selbstprüfung: die 21 Punkte wie bisher plus die 4 Lese-Punkte, die **hinten** angehängt sind (Index 21–24) und nur in der Anzeige vorne stehen. Danach wartet Leseblatt 2 wie jedes Leseblatt aufs Herzeigen |
+| Probe-Tag | An dem Tag, an dem die Probe der Papier-Auftrag ist (geplant Sa 14.11., sonst später), ist die Runde freiwillig: Der Kasten hat eine Zeile ohne Nummer, die Probe allein macht die Mission fertig (Plan-Karte, Ampel, Legends HQ). Darunter „Runde (freiwillig) · ca. N Min.“ · „Heute kein Muss.“ (`missionHeute().rundeFrei`) |
+| Schreibaufträge | `pb-papier-2` und `pb-papier-3` ohne Steckbrief-Person: nach einem Bild, mit Stationen-Satz. Auswahl nur noch „Figur von den Arbeitsblättern“ und „Bild von Mama oder Papa“ (`vorschlag` = die empfohlene). Zwei Checklisten-Punkte genauer (Haare: zwei Angaben; Kleidung: bei zwei Stücken ein Detail), Zahl der Punkte gleich |
+| Hinweis | Einmal beim ersten Öffnen nach dem Update: „Neues zur Schularbeit“ (`stoff.js` → `neues`, gemerkt in `S.ui.neues`, bis 16.11.). Wer neu anfängt, sieht ihn nicht |
+| Papier-Auftrag im Protokoll | Ein selbst geprüfter Papier-Auftrag zählt im Tagesprotokoll als eine neue Aufgabe (`n + 1`), so wie er in „offen“ als eine zählt. So gilt der Probe-Tag ohne Runde als „Mission geschafft“ statt „nichts fällig“ |
 
 ## Aufs iPhone
 
@@ -40,8 +58,8 @@ Alle Zahlen stehen in `MODELL` oben in `app.js`.
 | Verb-Check | Tabellenzeile Nennform → Mitvergangenheit · hat/ist + 2. Mittelwort, jede Form ist eine eigene Karte. An den Check-Tagen (`verbCheck.tage`) offene ÷ verbleibende Tage; höchstens 4 je Familie (fairer Anteil je Familie), `nichtZusammen` nie am selben Tag. Was nach dem letzten Check-Tag offen ist, kommt am nächsten Tag |
 | Ziel-Pakete | neu am `ab`-Tag oder danach, ganz, mit Merkkarte; verpasste Tage holen nach. Wer vor dem ersten Plan-Tag öffnet, bekommt dessen Inhalt schon |
 | Tagesablauf | 1 fällige A (wackeligste zuerst) · 2 neue A (Verb-Check zuerst) · 3 fällige Extra · 4 neue Extra. **A wird immer fertig**; der Deckel (20 Min., an Tagen mit ganzem Text 12) stoppt nur 3 und 4. Wiederholungen höchstens 50 (gekürzt wird nur Extra). Höchstens 3 Karten desselben Themas hintereinander |
-| Mission (seit `dl-v5`, vorher „Runde fertig“) | ① Runde = A des Tages fertig, ② an Schreibtagen der Schreibauftrag des Tages selbst geprüft (Herzeigen und Ausbessern gehören nicht dazu). „Runde“ heißt nur noch die Karten-Runde. Am Testtag keine Mission |
-| Extra-Regal | neue Extra-Karten in `rang`-Reihenfolge, automatisch, wenn unter dem Deckel Zeit bleibt; „+1 Paket“ = die nächsten 8, höchstens 1 pro Tag, nur nach fertiger Runde, nicht in den letzten 3 Tagen |
+| Mission (seit `dl-v5`, vorher „Runde fertig“) | ① Runde = A des Tages fertig, ② der Papier-Auftrag des Tages selbst geprüft: Schreibauftrag oder (seit `dl-v8`) Leseblatt (Herzeigen und Ausbessern gehören nicht dazu). „Runde“ heißt nur noch die Karten-Runde. Am Probe-Tag ist die Probe-Schularbeit allein die Mission, die Runde freiwillig. Am Testtag keine Mission |
+| Extra-Regal | neue Extra-Karten in `rang`-Reihenfolge, automatisch, wenn unter dem Deckel Zeit bleibt; „+1 Paket“ = die nächsten 8, höchstens 1 pro Tag, nur nach fertiger Runde, nicht in den letzten 3 Tagen. **Seit `dl-v8` macht Extra bis zur Schularbeit Pause** (`test.extraPause`) |
 | Endspurt (Sa–Mo) | Karten ohne Stern, seit Test − 4 nicht gewusst: Stufe ≥ 3 einmal an Sa, So oder Mo (nach Kartennummer), Stufe ≤ 2 spätestens Mo. Sterne ruhen |
 | Testtag | freiwillig aufwärmen, höchstens 10 Karten, nichts Neues |
 | Nach dem Test | alles läuft weiter; Sterne werden verteilt auf Test + 7 … Test + 11 fällig (24.–28.11., fest nach dem Hash der id) |
@@ -59,7 +77,9 @@ Alle Zahlen stehen in `MODELL` oben in `app.js`.
   **Spell Legend** bei BEREIT. Erreichte Titel bleiben (`ui.titel`).
 - Regal: Bretter je Bereich (Verben nach Familien als Doppel-Phiole) und das Brett „Extra – zählt nicht für die
   Ziellinie“. Stern-Korken = im Blitz-Check gewusst. Kein XP, keine Münzen, keine Flammen.
-- Nur `rolle: 'ziel'` zählt (249 Karten + 4 Schreib-Tränke). Extra und Nachschlagen nie.
+- Nur `rolle: 'ziel'` zählt (seit `dl-v8` 239 Karten + 4 Schreib-Tränke). Extra, Ruhendes und Nachschlagen nie.
+- BEREIT = alle drei Balken über der Linie **und** (seit `dl-v8`) drei Lese-Siegel; die Zeile „Lesen ● ○ ○“ steht
+  unter den Balken.
 - Zauberbuch, Tab Regeln: Ein Eintrag ist erst lesbar, wenn alle seine `pakete` begonnen haben (Merkkarte gelesen
   oder eine Karte im Regal); vorher nur der Titel, ausgegraut. So steht keine Antwort vor ihrem Blitz-Check im Buch.
 
@@ -135,6 +155,12 @@ node apps/deutsch-legends/tools/stoff-pruefen.mjs --merken   # vor dem Veröffen
   offen, steckt schon in `heute.neu`), `erledigt` (0/1, heute einer selbst geprüft) und `herzeigen` (Texte, die aufs
   Herzeigen warten). Legends HQ zeigt damit „Heute: … · Runde ✓ · Schreibauftrag auf Papier noch offen“ und „Zum
   Herzeigen: 1 Text …“, die Abendnachricht nennt, was fehlt.
+- Seit `dl-v8` dazu, nur als Zahlen: `art` (was heute auf Papier dran ist: 1 Schreibauftrag, 2 Leseblatt, 3
+  Probe-Schularbeit, 0 nichts), `blatt` (Nummer des Leseblatts) und `leseHerz` (Leseblätter, die auf den Vergleich mit
+  der Lösung warten, als Bitfeld: Blatt 1 = 1, 2 = 2, 3 = 4, 4 = 8). Am Probe-Tag meldet `heuteOffen` nur die Probe
+  (faellig 0, neu 0/1). Ruhende Karten stehen nicht im Bericht; `stoff.gesamt` ist 239, der Plan wird unter dem neuen
+  Schlüssel `2026-11-17|239` von selbst neu eingefroren (`S.plaene` wird nicht angefasst). Die Punkte der Leseblätter
+  gehen nie an den Server.
 - Früher Start: Wer vor dem ersten Plan-Tag (`PLAN_START`, 08.11.2026) öffnet, bekommt dessen Inhalt schon – freiwillig.
   `vorStartTage()` (vor jedem Bericht) merkt sich solche Tage im Protokoll (`vs = 1`) und setzt sie, sobald sie vorbei
   sind, auf nichts offen (`o = 0`, „nichts fällig“) bzw. auf fertig, wenn dort geübt wurde. Gemessen wird am Merker,
@@ -151,8 +177,10 @@ node apps/deutsch-legends/tools/stoff-pruefen.mjs --merken   # vor dem Veröffen
 `settings` (name, testDate, testSince, sfx) · `k` (Karte: lv, due, last, ok, bad, since; dazu s = Stern seit, gw =
 zuletzt gewusst, c = Blitz-Check 1/0, v = nächste Variante, b = letztes Pool-Beispiel) · `regel` (Paket → Tag der
 Merkkarte) · `papier` (nur Altstand dl-v1) · `stats` (xp bleibt aus dl-v1, wird nicht mehr gezeigt) · `day` (date,
-newCount, extra) · `ui` (hideInstall, onboarded, ziellinie, titel, bereit, perfekt) · `schreiben` (`a` je Auftrag:
-person, start, fertig, haken, passtNicht, selbst, herz, aus, ausN, rate, dauer · `t` je Schreib-Trank: lv, passt) · `log` · `plaene`.
+newCount, extra) · `ui` (hideInstall, onboarded, ziellinie, titel, bereit, perfekt, neues) · `schreiben` (`a` je Auftrag:
+person, start, fertig, haken, passtNicht, selbst, herz, aus, ausN, rate, dauer, uhr · `t` je Schreib-Trank: lv, passt) · `log` · `plaene`.
+Seit `dl-v8` stehen in `schreiben.a` auch die Leseblätter (`le-papier-1…4`: start, fertig, haken[4], selbst, herz:
+[{ tag, punkte }]) – bewusst am selben Ort wie die Schreibaufträge: Dieses Feld übernimmt auch ein älterer App-Stand ganz.
 `haken` und `passtNicht` hängen am Index der Checkliste: Die Zahl der Punkte je Teil darf sich nie ändern.
 Neue Felder nur über `fresh()` und `upgrade()`; ein unlesbarer Stand wird als `deutschlegends.v1.kaputt` beiseitegelegt.
 Update dl-v1 → dl-v2: alle Felder bleiben, `ui.ziellinie` fehlt → der Ziellinien-Bildschirm kommt einmal. Update dl-v2 → dl-v3: Speicher unverändert. Update dl-v3 → dl-v4: Speicher unverändert; nur im `log` werden Tage vor
@@ -162,11 +190,17 @@ Update dl-v4 → dl-v5: Speicher nur erweitert. `passtNicht` (Liste parallel zu 
 jetzt ✓ oder „passt hier nicht“. Getestet mit einem echten dl-v3-Stand (Runde fertig, Schreibauftrag angefangen, 4 von 5 ✓):
 kein Feld verloren. Update dl-v5 → dl-v6: Speicher unverändert (nur Text eines Checklisten-Punkts, Zahl der Punkte gleich).
 Update dl-v6 → dl-v7: Speicher unverändert (nur Texte; Zahl der Punkte und „wenn es passt:“ je Punkt gleich).
+Update dl-v7 → dl-v8: Speicher nur erweitert (`ui.neues`, Leseblätter in `schreiben.a`, `uhr` bei der Probe). Keine id
+geändert; `fb-fall1…4` wechseln nur das Paket. Getestet mit einem dl-v7-Stand (4 Tage geübt, 10 Fall-Karten von ⅓ bis
+voll mit und ohne Stern, 1c mit „passt hier nicht“ wartet aufs Herzeigen, 1d geschrieben mit 2 von 3 Haken): `k`,
+`regel`, `schreiben`, `settings`, `stats`, `day` Zeichen für Zeichen gleich; Regal vorher und nachher „26 erarbeitet ·
+122 Sterne“; Wortarten 83 % → 85 % ohne Feier; in `plaene` kommt `2026-11-17|239` dazu, der alte Eintrag bleibt.
+Die Checkliste der Probe wächst von 21 auf 25 Punkte (hinten angehängt, `checkStand` füllt mit „nicht abgehakt“ auf).
 
 ## Offline und Updates
 
 Wie Word Legends seit `wl-v5`: App-Dateien mit Internet frisch vom Server (höchstens 2,5 s warten), sonst aus dem
-Cache. Neue `VERSION` (in `sw.js` **und** `app.js`, Stand `dl-v7`) wird beim Öffnen und beim Zurückholen erkannt; die
+Cache. Neue `VERSION` (in `sw.js` **und** `app.js`, Stand `dl-v8`) wird beim Öffnen und beim Zurückholen erkannt; die
 App lädt neu, sobald sie auf der Startseite ist, nie mitten in einer Runde. Der Service Worker löscht nur eigene Caches
 (`dl-…`). Die laufende Version steht unten in den Einstellungen („Version 5“).
 
@@ -176,7 +210,8 @@ App lädt neu, sobald sie auf der Startseite ist, nie mitten in einer Runde. Der
 - `stoff.js` – der Stoff · `app.js` – Lernlogik und Oberfläche (ein IIFE in Abschnitten)
 - `legends-status.js`, `legends-sync.js` – Kopien aus `apps/legends-hq/shared/`
 - `sw.js` – Offline-Cache · `manifest.webmanifest`, `icons/` – App-Icon (Quelle `icons/icon-source.html`)
-- `tools/devserver.py` – Test-Server ohne Cache · `tools/stoff-pruefen.mjs` – Prüfung von `stoff.js`
+- `tools/devserver.py` – Test-Server ohne Cache · `tools/stoff-pruefen.mjs` – Prüfung von `stoff.js` (Soll seit `dl-v8`:
+  Ziel 239 · Extra 168 · Ruht 10 · Nachschlagen 0; prüft auch Leseblätter, `neues`, `ruhen`)
 
 ## Lokal testen
 
@@ -190,8 +225,8 @@ Auf localhost ist der Offline-Cache aus (mit `?sw` trotzdem testen). Browser-Kon
 | Befehl | Wofür |
 |---|---|
 | `DL.shiftDays(1)` | einen Tag weiter (nur in diesem Tab) |
-| `DL.tag()` | Tagesmenge wie auf der Startseite: Mission (`○/✓ Runde · ○/✓ Schreiben`), fällig/neu A und Extra, Verben, Minuten, Deckel, Schreibauftrag, Herzeigen, Ausbessern, Zielstand |
-| `DL.autoRunde({ p, vw, schreiben, seed })` | Simulation: spielt die Tagesrunde ohne Oberfläche (p = richtig bei Wiederholungen, vw = im Blitz-Check gewusst), Schreibauftrag mit „Passt“ |
+| `DL.tag()` | Tagesmenge wie auf der Startseite: Mission (`○/✓ Runde (freiwillig) · ○/✓ Schreiben/Lesen/Probe`), fällig/neu A und Extra, Verben, Minuten, Deckel, Papier-Auftrag (`papier`), Herzeigen, Ausbessern, Zielstand, `siegel`, `ersatz`, `extraPause` |
+| `DL.autoRunde({ p, vw, schreiben, seed, runde, punkte, herzeigen })` | Simulation: spielt die Tagesrunde ohne Oberfläche (p = richtig bei Wiederholungen, vw = im Blitz-Check gewusst), Papier-Auftrag des Tages mit „Passt“ bzw. Punkten fürs Leseblatt (`punkte`, Standard 5); `runde: false` lässt die Karten aus (Probe-Tag), `herzeigen: false` das Herzeigen |
 | `DL.check(id, eingabe, variante)` | Antwort prüfen; id einer Karte oder eines Pool-Beispiels; eingabe = Text oder Liste je Feld/Lücke, Verb Vergangenheit `['hat', 'gegangen']` oder `'ist gegangen'` |
 | `DL.ueben(['id', …], art)` | bestimmte Karten gleich üben (`art` 'check' = wie beim ersten Mal); auch `'vcheck:v-bieten'` (Verb-Check) und `'regel:v'` (Regelkarte eines Pakets) |
 | `DL.ziel()` · `DL.prognose()` · `DL.stoff()` | Zielstand · „Bereit frühestens …“ · geladener Stoff und Fehler darin |

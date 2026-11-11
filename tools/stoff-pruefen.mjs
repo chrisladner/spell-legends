@@ -25,7 +25,9 @@ const F = (wo, was) => fehler.push(`${wo}: ${was}`);
 const W = (wo, was) => warn.push(`${wo}: ${was}`);
 
 // Soll je Rolle laut lernmodell.md 3a (07.11.2026). Kommt neuer Stoff dazu, hier mitziehen.
-const SOLL = { ziel: 249, extra: 168, nachschlagen: 0 };   // ws und pb-adj seit 07.11. 18:10 im Extra-Regal (ohne Wortspeicher in der Schularbeit)
+// 11.11.2026 (Zettel des Lehrers): Die 4 Fälle ruhen – no-fall 4, no-fallb 2, fb-faelle 4 = 10 Karten, Ziel 249 → 239.
+const SOLL = { ziel: 239, extra: 168, ruht: 10, nachschlagen: 0 };   // ws und pb-adj seit 07.11. 18:10 im Extra-Regal (ohne Wortspeicher in der Schularbeit)
+const LESE_PUNKTE = 4;     // Punkte zum Selbstprüfen eines Leseblatts – nie ändern, haken hängt am Index
 const MAX_FELDER = 6;      // vb-pers: Personalform-Tabelle wie im Heft
 const MAX_LUECKEN = 5;     // vb-zeit-u-…: ein Satz in drei Zeitformen
 const WS_KATEGORIEN = ['Haare', 'Frisur', 'Haarfarbe', 'Gesicht', 'Augen', 'Nase', 'Mund', 'Zähne', 'Ohren', 'Körper', 'Kleidung'];
@@ -213,6 +215,13 @@ else {
   if (!isDay(S.test.datum)) F('test', 'datum fehlt oder nicht JJJJ-MM-TT');
   if (!isDay(S.test.eingetragen)) W('test', 'eingetragen fehlt (Plan rechnet dann ab dem ersten Öffnen)');
   if (!istText(S.test.titel)) W('test', 'titel fehlt');
+  if (S.test.extraPause != null && typeof S.test.extraPause !== 'boolean') F('test', 'extraPause: true oder false');
+}
+// Einmaliger Hinweis nach einem Update und Texte zur Reihe der ruhenden Tränke
+if (S.neues != null) {
+  if (!istText(S.neues.id)) F('neues', 'id fehlt (daran merkt sich die App, dass der Hinweis gelesen ist)');
+  for (const k of ['titel', 'text', 'knopf']) if (!istText(S.neues[k])) F('neues', `${k} fehlt`);
+  if (!isDay(S.neues.bis)) F('neues', 'bis fehlt (letzter Tag, JJJJ-MM-TT)');
 }
 const TEST = S.test && isDay(S.test.datum) ? S.test.datum : null;
 const BER = new Map();
@@ -223,7 +232,7 @@ const BER = new Map();
   if (!istText(b.titel)) W(wo, 'titel fehlt');
   if (b.gewicht != null && !(Number(b.gewicht) > 0)) F(wo, 'gewicht muss eine Zahl über 0 sein');
   if (b.papier != null && !(b.papier > 0 && b.papier < 1)) F(wo, 'papier muss zwischen 0 und 1 liegen');
-  BER.set(b.id, { ...b, n: { ziel: 0, extra: 0, nachschlagen: 0 } });
+  BER.set(b.id, { ...b, n: { ziel: 0, extra: 0, ruht: 0, nachschlagen: 0 } });
 });
 if (!BER.size) F('bereiche', 'keine Bereiche');
 const mitG = [...BER.values()].filter(b => b.gewicht != null).length;
@@ -239,14 +248,15 @@ const PAK = new Map();
   if (PAK.has(p.id)) F(wo, 'id doppelt');
   if (!BER.has(p.bereich)) F(wo, `Bereich „${p.bereich}“ fehlt`);
   if (!istText(p.titel)) W(wo, 'titel fehlt');
-  if (!['ziel', 'extra', 'nachschlagen'].includes(p.rolle)) F(wo, `rolle „${p.rolle}“ (erlaubt: ziel, extra, nachschlagen)`);
+  if (!['ziel', 'extra', 'ruht', 'nachschlagen'].includes(p.rolle)) F(wo, `rolle „${p.rolle}“ (erlaubt: ziel, extra, ruht, nachschlagen)`);
   if (p.rolle === 'ziel') {
     if (!isDay(p.ab)) F(wo, 'ab fehlt (frühester Tag, JJJJ-MM-TT)');
     else if (TEST && p.ab >= TEST) F(wo, `ab ${p.ab} liegt nicht vor dem Test`);
     if (p.rang != null) W(wo, 'rang gilt nur für Extra-Pakete');
   } else if (p.ab != null) W(wo, 'ab gilt nur für Ziel-Pakete');
   if (p.rolle === 'extra' && !(Number.isInteger(p.rang) && p.rang >= 1)) F(wo, 'rang fehlt (Platz im Extra-Regal, ganze Zahl ab 1)');
-  if (p.rolle === 'nachschlagen' && p.rang != null) W(wo, 'Nachschlagen steht nicht im Extra-Regal (rang weglassen)');
+  if ((p.rolle === 'nachschlagen' || p.rolle === 'ruht') && p.rang != null) W(wo, 'steht nicht im Extra-Regal (rang weglassen)');
+  if (p.vorher != null && !(Array.isArray(S.pakete) && S.pakete.some(q => q && q.id === p.vorher && q.id !== p.id))) F(wo, `vorher: Paket „${p.vorher}“ fehlt`);
   if (p.check != null && !['einzel', 'regel', 'auswahl'].includes(p.check)) F(wo, `check „${p.check}“ (erlaubt: einzel, regel, auswahl)`);
   if (p.thema != null && !istText(p.thema)) F(wo, 'thema muss ein Text sein');
   if (p.regel != null) htmlPruefen(`${wo} regel`, p.regel);
@@ -445,8 +455,39 @@ else {
     if (!(a.minuten > 0)) F(wo, 'minuten fehlen');
     if (!['offen', 'ueberarbeiten', 'zu'].includes(a.wortspeicher)) F(wo, 'wortspeicher: offen, ueberarbeiten oder zu');
     if (a.person != null && !PERS.has(a.person)) F(wo, `Person „${a.person}“ fehlt`);
+    if (a.vorschlag != null && !['blatt', 'bild'].includes(a.vorschlag)) F(wo, 'vorschlag: blatt oder bild');
+    if (a.vorschlag != null && a.person != null) W(wo, 'vorschlag und person zugleich: Die App nimmt den vorschlag');
+    if (a.lesen != null && !((SCH.lesen && SCH.lesen.blaetter) || []).some(l => l && l.id === a.lesen)) F(wo, `lesen: Leseblatt „${a.lesen}“ fehlt`);
+    if (a.lesen != null && !a.probe) W(wo, 'lesen gilt nur für die Probe');
     if (a.ganz && Array.isArray(a.traenke) && a.traenke.length !== TRAENKE.size) W(wo, 'ganzer Text, aber nicht alle Tränke');
   });
+  // Leseblätter auf Papier (seit 11.11.2026): Der Lesetext steht nie in der App
+  const LE = SCH.lesen;
+  if (LE != null) {
+    const bl = Array.isArray(LE.blaetter) ? LE.blaetter : [];
+    if (!bl.length) F('lesen', 'blaetter fehlen');
+    if (!textListe(LE.checkliste) || LE.checkliste.length !== LESE_PUNKTE) F('lesen', `checkliste: genau ${LESE_PUNKTE} Punkte (haken hängt am Index)`);
+    if (!(Number.isInteger(LE.fragen) && LE.fragen >= 1 && LE.fragen <= 12)) F('lesen', 'fragen: ganze Zahl von 1 bis 12');
+    const zaehlen = bl.filter(l => l && !l.ersatz).length;
+    if (!(Number.isInteger(LE.siegel) && LE.siegel >= 1 && LE.siegel <= zaehlen)) F('lesen', `siegel: ganze Zahl von 1 bis ${zaehlen} (Blätter ohne Ersatz)`);
+    if (LE.merkkarte != null && !(Array.isArray(S.zauberbuch) && S.zauberbuch.some(z => z && z.id === LE.merkkarte))) F('lesen', `merkkarte: Zauberbuch-Eintrag „${LE.merkkarte}“ fehlt`);
+    const nummern = new Set();
+    bl.forEach((l, i) => {
+      const wo = `Leseblatt ${l && l.id ? l.id : '#' + i}`;
+      if (!l || !neueId(l.id, wo, true)) return;
+      if (!isDay(l.ab)) F(wo, 'ab fehlt (JJJJ-MM-TT)');
+      else if (TEST && l.ab >= TEST) F(wo, 'ab liegt nicht vor dem Test');
+      if (!(Number.isInteger(l.blatt) && l.blatt >= 1 && l.blatt <= 4)) F(wo, 'blatt: Nummer von 1 bis 4 (so meldet sie der Lagebericht)');
+      else if (nummern.has(l.blatt)) F(wo, `blatt ${l.blatt} doppelt`);
+      nummern.add(l.blatt);
+      if (!istText(l.titel)) F(wo, 'titel fehlt');
+      if (!istText(l.text)) W(wo, 'text fehlt');
+      if (!(l.minuten > 0)) F(wo, 'minuten fehlen');
+      const inProbe = (SCH.auftraege || []).filter(a => a && a.lesen === l.id);
+      if (inProbe.length > 1) F(wo, 'steht in mehreren Aufträgen als lesen');
+      if (inProbe.length && l.ersatz) F(wo, 'Ersatz-Blatt kann nicht Teil der Probe sein');
+    });
+  }
   if (!SCH.mustertext || !istText(SCH.mustertext.titel) || !textListe(SCH.mustertext.absaetze)) F('schreiben', 'mustertext: titel und absaetze');
   // Wortspeicher: Kategorien von oben nach unten, darin alphabetisch (de-AT) – nie in der Reihenfolge der Blätter
   const ws = SCH.wortspeicher;
@@ -491,7 +532,7 @@ for (const w of VERBOTEN) {
 // ================================================================
 // Zählung je Rolle
 // ================================================================
-const n = { ziel: 0, extra: 0, nachschlagen: 0 };
+const n = { ziel: 0, extra: 0, ruht: 0, nachschlagen: 0 };
 for (const p of PAK.values()) {
   const k = p.karten.length + 2 * p.verben;
   if (!k) W(`Paket ${p.id}`, 'hat keine Karten');
@@ -503,6 +544,12 @@ for (const p of PAK.values()) {
   if (p.check === 'einzel' && p.karten.some(c => c.pool != null)) W(`Paket ${p.id}`, 'check einzel, aber Regel-Karten darin');
 }
 for (const r of Object.keys(SOLL)) if (n[r] !== SOLL[r]) F('Zählung', `${r}: ${n[r]} Karten, Soll ${SOLL[r]} (lernmodell 3a)`);
+// Ruhende Tränke brauchen die Texte für ihre Reihe im Regal
+if (n.ruht > 0) {
+  const R = S.ruhen;
+  if (!R || !BER.has(R.bereich)) F('ruhen', 'fehlt oder bereich unbekannt (Texte zur Reihe der ruhenden Tränke)');
+  else for (const k of ['titel', 'bis', 'traenke', 'wieder']) if (!istText(R[k])) F('ruhen', `${k} fehlt`);
+}
 
 // ================================================================
 // Register veröffentlichter ids
@@ -524,16 +571,16 @@ if (process.argv.includes('--merken')) {
 // Ausgabe
 // ================================================================
 const poolBsp = Object.values(POOLS).reduce((a, l) => a + (Array.isArray(l) ? l.length : 0), 0);
-console.log(`stoff.js (Format ${S.format}): ${n.ziel + n.extra + n.nachschlagen} Karten · Ziel ${n.ziel} · Extra ${n.extra} · Nachschlagen ${n.nachschlagen}` +
-  `  (Soll ${SOLL.ziel} · ${SOLL.extra} · ${SOLL.nachschlagen})`);
+console.log(`stoff.js (Format ${S.format}): ${n.ziel + n.extra + n.ruht + n.nachschlagen} Karten · Ziel ${n.ziel} · Extra ${n.extra} · Ruht ${n.ruht} · Nachschlagen ${n.nachschlagen}` +
+  `  (Soll ${SOLL.ziel} · ${SOLL.extra} · ${SOLL.ruht} · ${SOLL.nachschlagen})`);
 console.log(`  ${PAK.size} Pakete · ${Object.keys(POOLS).length} Pools mit ${poolBsp} Beispielen · ${VERBEN.length} Verben (= ${2 * VERBEN.length} Karten) · ` +
   `Einträge in karten: ${Object.entries(proTyp).map(([t, k]) => `${t} ${k}`).join(', ')}`);
-for (const b of BER.values()) console.log(`  ${b.titel || b.id}: Ziel ${b.n.ziel} · Extra ${b.n.extra} · Nachschlagen ${b.n.nachschlagen}`);
-for (const r of ['ziel', 'extra', 'nachschlagen']) {
+for (const b of BER.values()) console.log(`  ${b.titel || b.id}: Ziel ${b.n.ziel} · Extra ${b.n.extra} · Ruht ${b.n.ruht} · Nachschlagen ${b.n.nachschlagen}`);
+for (const r of ['ziel', 'extra', 'ruht', 'nachschlagen']) {
   const ps = [...PAK.values()].filter(p => p.rolle === r);
   console.log(`  ${r}: ` + ps.map(p => `${p.id} ${p.karten.length + 2 * p.verben}`).join(' · '));
 }
-if (SCH) console.log(`  Schreiben: ${TRAENKE.size} Tränke · ${(SCH.auftraege || []).length} Aufträge · ${(SCH.personen || []).length} Personen · Wortspeicher ` +
+if (SCH) console.log(`  Schreiben: ${TRAENKE.size} Tränke · ${(SCH.auftraege || []).length} Aufträge · ${((SCH.lesen && SCH.lesen.blaetter) || []).length} Leseblätter · ${(SCH.personen || []).length} Personen · Wortspeicher ` +
   `${(SCH.wortspeicher || []).reduce((a, w) => a + ((w && w.woerter) || []).length, 0)} Einträge · Zauberbuch ${ZB.size} Regelkarten`);
 if (TEST) console.log(`  Termin: ${S.test.titel || 'Test'} am ${S.test.datum} (eingetragen ${S.test.eingetragen || '–'}) · Register: ${REGISTER.size} ids mit Fortschritt, ids.txt ${reg.length}`);
 warn.forEach(x => console.log('Warnung: ' + x));

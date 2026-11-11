@@ -17,7 +17,7 @@ const APP_NAME = 'Spell Legends';
 const APP_ID = 'dl';                    // Legends HQ: Lagebericht und Sicherung (/^[a-z]{2,8}$/)
 const STORE_KEY = 'deutschlegends.v1';  // Speicher des Fortschritts – nie ändern
 const CODE_PREFIX = 'DL1:';             // Sicherungs-Code (werkzeuge/lernstand.mjs kennt ihn)
-const VERSION = 'dl-v7';                // wie VERSION in sw.js – immer beide zusammen hochzählen
+const VERSION = 'dl-v8';                // wie VERSION in sw.js – immer beide zusammen hochzählen
 const DAY_KEY = 'dl.dayOffset';         // sessionStorage: Zeitsprung zum Testen (DL.shiftDays)
 
 // ================================================================
@@ -41,6 +41,7 @@ const MODELL = {
   extraPaket: 8,        // „+1 Paket“ = die nächsten 8 Extra-Karten …
   extraProTag: 1,       // … höchstens einmal am Tag, nur nach fertiger Runde …
   extraSperre: 3,       // … und nicht in den letzten 3 Tagen vor dem Test (dann auch kein automatisches Extra)
+                        // Seit dl-v8 kann stoff.js das Extra bis zum Termin ganz pausieren (test.extraPause, extraPause())
   verblasst: 7,         // über 7 Tage überfällig → zählt auf der Ziel-Karte eine Stufe tiefer („verdunstet“)
   nochmalAbstand: 5,    // Fehler in der Runde: nach mindestens 5 anderen Karten noch einmal …
   nochmalMax: 3,        // … bis einmal richtig, höchstens 3 Mal
@@ -108,7 +109,8 @@ const STOFF_FEHLER = [];
 const BEREICHE = (Array.isArray(STOFF.bereiche) ? STOFF.bereiche : []).filter(b => b && b.id);
 const BEREICH = Object.create(null);
 BEREICHE.forEach((b, i) => { b.index = i; b.titel = b.titel || b.id; b.kurz = b.kurz || b.titel; BEREICH[b.id] = b; });
-const ROLLEN = ['ziel', 'extra', 'nachschlagen'];
+// ruht (seit dl-v8): zählt nicht und kommt nie dran, der Fortschritt bleibt und steht im Regal in einer eigenen Reihe
+const ROLLEN = ['ziel', 'extra', 'ruht', 'nachschlagen'];
 const PAKETE = (Array.isArray(STOFF.pakete) ? STOFF.pakete : []).filter(p => {
   if (p && p.id && BEREICH[p.bereich]) return true;
   STOFF_FEHLER.push(`Paket ${p && p.id}: Bereich „${p && p.bereich}“ fehlt`);
@@ -174,7 +176,7 @@ for (const raw of Array.isArray(STOFF.karten) ? STOFF.karten : []) {
     addKarte(c);
   } catch (e) { STOFF_FEHLER.push(`Karte ${raw && raw.id}: ${e.message}`); }
 }
-// Reihenfolge im Extra-Regal: nach rang (lernmodell 2), sonst wie in stoff.js. C (nachschlagen) steht nicht darin.
+// Reihenfolge im Extra-Regal: nach rang (stoff.js), sonst wie in stoff.js. C (nachschlagen) und Ruhendes stehen nicht darin.
 const EXTRA_FOLGE = PAKETE.filter(p => p.rolle === 'extra' && p.karten.length)
   .sort((a, b) => ((a.rang == null ? 999 : a.rang) - (b.rang == null ? 999 : b.rang)) || (a.index - b.index));
 // Schreiben (bauauftrag 6)
@@ -191,6 +193,34 @@ const AUFTRAG = Object.create(null);
 AUFTRAEGE.forEach((a, i) => { a.index = i; a.titel = a.titel || a.id; AUFTRAG[a.id] = a; });
 // Tage mit einem ganzen Text: kürzerer Deckel fürs Extra (Do 12., Sa 14.)
 const KURZTAGE = new Set(AUFTRAEGE.filter(a => a.ganz).map(a => a.ab));
+// Leseblätter auf Papier (seit dl-v8, Lernauftrag Abschnitt 5 vom 11.11.2026): Der Lesetext steht nicht in der App.
+// Ein Leseblatt ist wie ein Schreibauftrag der Schritt ② seines Tages, füllt aber keinen Trank und zählt nicht fürs
+// Ziel. Es ist bewusst kein Eintrag in AUFTRAEGE: nicht „ganz“ (KURZTAGE), keine Tränke, eigene Checkliste.
+const LESEN = SCHREIBEN.lesen && typeof SCHREIBEN.lesen === 'object' ? SCHREIBEN.lesen : {};
+const LESE_CHECK = (Array.isArray(LESEN.checkliste) ? LESEN.checkliste : []).map(String);
+const LESE_FRAGEN = Number(LESEN.fragen) > 0 ? Math.min(12, Math.round(Number(LESEN.fragen))) : 6;
+const LESE = (Array.isArray(LESEN.blaetter) ? LESEN.blaetter : []).filter(a => {
+  const ok = a && typeof a.id === 'string' && a.id && isDay(a.ab) && !AUFTRAG[a.id] && LESE_CHECK.length > 0;
+  if (!ok) STOFF_FEHLER.push(`Leseblatt ${a && a.id}: id oder ab fehlt, oder lesen.checkliste ist leer`);
+  return ok;
+}).sort((a, b) => cmp(a.ab, b.ab));
+const LESEBLATT = Object.create(null);
+LESE.forEach((a, i) => { a.art = 'lesen'; a.index = i; a.blatt = Number(a.blatt) > 0 ? Math.round(Number(a.blatt)) : i + 1; a.titel = a.titel || `Leseblatt ${a.blatt}`; LESEBLATT[a.id] = a; });
+// Art eines Schreibauftrags: Die Probe mit Leseblatt (lesen) ist die „Probe-Schularbeit“ – an ihrem Tag ist die Runde freiwillig.
+AUFTRAEGE.forEach(a => {
+  if (a.lesen && !LESEBLATT[a.lesen]) { STOFF_FEHLER.push(`Schreibauftrag ${a.id}: Leseblatt „${a.lesen}“ fehlt`); a.lesen = ''; }
+  a.art = a.probe && a.lesen ? 'probe' : 'schreiben';
+  if (a.lesen) LESEBLATT[a.lesen].inProbe = a.id;
+});
+// Lese-Siegel: so viele gehören zu BEREIT (höchstens so viele, wie es Blätter gibt; ohne Leseblätter keine)
+const LESE_SIEGEL = Math.max(0, Math.min(LESE.length, Math.round(Number(LESEN.siegel) || 0)));
+// Die Papier-Aufträge in einer Reihe: Schreibaufträge und Leseblätter nach ihrem Tag (am selben Tag Schreiben zuerst).
+// Jeden Tag ist der erste offene der Schritt ②. Das Blatt der Probe und das Ersatz-Blatt stehen nicht in der Reihe.
+const PAPIER = [...AUFTRAEGE, ...LESE.filter(a => !a.inProbe && !a.ersatz)]
+  .sort((a, b) => cmp(a.ab, b.ab) || ((a.art === 'lesen' ? 1 : 0) - (b.art === 'lesen' ? 1 : 0)) || (a.index - b.index));
+// Ruhende Tränke (Rolle „ruht“): Texte für die eigene Reihe im Regal · Einmaliger Hinweis nach einem Update
+const RUHEN = STOFF.ruhen && typeof STOFF.ruhen === 'object' ? STOFF.ruhen : {};
+const NEUES = STOFF.neues && typeof STOFF.neues === 'object' && STOFF.neues.id && STOFF.neues.text ? STOFF.neues : null;
 const VC = STOFF.verbCheck && typeof STOFF.verbCheck === 'object' ? STOFF.verbCheck : {};
 const VC_TAGE = (Array.isArray(VC.tage) ? VC.tage : []).filter(isDay).sort();
 const VC_PRO_FAMILIE = Number(VC.proFamilie) > 0 ? Number(VC.proFamilie) : 4;
@@ -200,7 +230,7 @@ for (const g of Array.isArray(VC.nichtZusammen) ? VC.nichtZusammen : []) {
   for (const a of g) for (const b of g) if (a !== b) (VC_NICHT[a] = VC_NICHT[a] || new Set()).add(b);
 }
 // Erster Tag des Plans (früher Start: wer davor öffnet, bekommt schon den Inhalt dieses Tages)
-const PLAN_START = [...VC_TAGE, ...PAKETE.filter(p => p.rolle === 'ziel' && p.ab).map(p => p.ab), ...AUFTRAEGE.map(a => a.ab)].sort()[0] || '';
+const PLAN_START = [...VC_TAGE, ...PAKETE.filter(p => p.rolle === 'ziel' && p.ab).map(p => p.ab), ...AUFTRAEGE.map(a => a.ab), ...LESE.map(a => a.ab)].sort()[0] || '';
 if (STOFF_FEHLER.length) console.warn('stoff.js – diese Einträge fehlen in der App:', STOFF_FEHLER);
 
 // ---------- Karten vorbereiten ----------
@@ -691,6 +721,7 @@ function clock() {
 // regel = Paket-id → Tag, an dem die Merkkarte zum ersten Mal kam · papier = Papier-Karten von dl-v1 (nur Altstand)
 // schreiben = Schreibaufträge auf Papier: a (je Auftrag) und t (je Schreib-Trank), siehe „Schreiben“ weiter unten
 // ui.titel = höchster erreichter Titel (bleibt) · ui.bereit / ui.perfekt = Tag des ersten BEREIT / PERFEKT
+// ui.neues = id des letzten gelesenen Hinweises „Neues …“ (stoff.js neues; seit dl-v8)
 // log = Tagesprotokoll für Plan-Karte und Lagebericht { 'JJJJ-MM-TT': { a, r, n, s, f, o, k } }, höchstens 90 Tage.
 // plaene = eingefrorener Plan je Termin, legt LegendsStatus.bericht() selbst ab (schnittstelle.md §5).
 function fresh() {
@@ -702,7 +733,7 @@ function fresh() {
     papier: {},
     stats: { xp: 0, streak: 0, best: 0, lastDay: '', answers: 0, right: 0, sessions: 0 },
     day: { date: '', newCount: 0, extra: 0 },
-    ui: { hideInstall: false, onboarded: false, ziellinie: false, titel: 0, bereit: '', perfekt: '' },
+    ui: { hideInstall: false, onboarded: false, ziellinie: false, titel: 0, bereit: '', perfekt: '', neues: '' },
     schreiben: { a: {}, t: {} },
     log: {},
     plaene: {}
@@ -740,7 +771,10 @@ function load() {
     // Frisch starten – aber den unlesbaren Stand vorher beiseitelegen, sonst überschreibt ihn das nächste save()
     try { if (raw) localStorage.setItem(STORE_KEY + '.kaputt', raw); } catch (e2) { /* egal */ }
   }
-  return fresh();
+  // Ganz neu: Der Hinweis „Neues …“ erklärt eine Änderung – wer heute erst anfängt, braucht ihn nicht
+  const neu = fresh();
+  if (NEUES) neu.ui.neues = String(NEUES.id);
+  return neu;
 }
 const TEST = STOFF.test && isDay(STOFF.test.datum) ? STOFF.test : null;   // offizieller Termin (vor load: upgrade braucht ihn)
 let S = load();
@@ -801,7 +835,7 @@ function nextTest() {
   if (isDay(S.settings.testSince)) t.seit = S.settings.testSince;
   return t;
 }
-// Ziel (100 %, Ziellinie, Ampel) = alle A-Karten (Rolle „ziel“) und die Schreib-Tränke. Extra und Nachschlagen nie.
+// Ziel (100 %, Ziellinie, Ampel) = alle A-Karten (Rolle „ziel“) und die Schreib-Tränke. Extra, Ruhendes und Nachschlagen nie.
 function imZiel(c) { return c.rolle === 'ziel'; }
 // Früher Start: Wer vor dem ersten Plan-Tag öffnet, bekommt dessen Inhalt schon heute. Wer früher anfängt, darf.
 function planTag() { const t = today(); return PLAN_START && t < PLAN_START ? PLAN_START : t; }
@@ -839,7 +873,7 @@ function sternFaellig(c) {
 // Stern-Tränke ruhen. Am Testtag und danach gilt der normale Plan.
 function effDue(c) {
   const st = S.k[c.id], t = testDate();
-  if (!t || st.s || c.rolle === 'nachschlagen') return st.due;
+  if (!t || st.s || c.rolle === 'nachschlagen' || c.rolle === 'ruht') return st.due;
   const tage = daysBetween(today(), t);
   if (tage < 1) return st.due;
   if (st.gw && st.gw >= addDays(t, -MODELL.gewusstAb)) return st.due;
@@ -977,8 +1011,12 @@ function neuePaketeA() {
     .filter(x => x.karten.length);
 }
 function extraOffeneKarten() { return EXTRA_FOLGE.flatMap(p => p.karten.filter(c => !S.k[c.id])); }
+// Extra macht Pause bis nach der Schularbeit (stoff.js test.extraPause, Lernauftrag Abschnitt 5 vom 11.11.2026):
+// Bis zum offiziellen Termin kommt nichts aus dem Extra-Regal – weder Fälliges noch Neues in der Runde, kein „+1 Paket“,
+// auch nicht beim Aufwärmen am Testtag. Der Fortschritt bleibt, freies Üben geht weiter. Am Tag danach läuft Extra wieder.
+function extraPause() { return !!(TEST && TEST.extraPause && officialTest()); }
 // Neues Extra nur bis Test − 4; danach Endspurt und Testtag, nach dem Test wieder
-function extraNeuErlaubt() { const d = testIn(); return d == null || d > MODELL.extraSperre; }
+function extraNeuErlaubt() { const d = testIn(); return !extraPause() && (d == null || d > MODELL.extraSperre); }
 function deckelHeute() { return KURZTAGE.has(today()) ? MODELL.deckelKurz : MODELL.deckel; }
 // geschätzte Sekunden für eine Karte (neu: mit Blitz-Check und Lernschritt)
 function sekKarte(c, neu) {
@@ -995,7 +1033,7 @@ function tagesPlan() {
   const wdhSchon = reviewsToday();
   if (plan.testtag) {
     // Testtag: nur Gerutschtes zum Aufwärmen, A zuerst, höchstens 10
-    const due = KARTEN.filter(c => c.rolle !== 'nachschlagen' && isDue(c))
+    const due = KARTEN.filter(c => (c.rolle === 'ziel' || (c.rolle === 'extra' && !extraPause())) && isDue(c))
       .sort((a, b) => ((a.rolle === 'ziel' ? 0 : 1) - (b.rolle === 'ziel' ? 0 : 1)) || urgency(a, b));
     plan.aDue = due.slice(0, Math.max(0, MODELL.testtagLimit - wdhSchon));
     plan.sekA = plan.sek = summe(plan.aDue, c => sekKarte(c, false));
@@ -1010,7 +1048,7 @@ function tagesPlan() {
   plan.sekA = summe(plan.aDue, c => sekKarte(c, false)) + summe(plan.aNeu, c => sekKarte(c, true)) + plan.merk.length * MODELL.sek.merkkarte;
   // Extra: was unter den Deckel passt – zuerst fällige (wackeligste zuerst), dann neue in rang-Reihenfolge
   let rest = deckelHeute() * 60 - heuteSek() - plan.sekA;
-  const eDue = KARTEN.filter(c => c.rolle === 'extra' && isDue(c)).sort(urgency)
+  const eDue = (extraPause() ? [] : KARTEN.filter(c => c.rolle === 'extra' && isDue(c))).sort(urgency)
     .slice(0, Math.max(0, MODELL.wdhLimit - wdhSchon - plan.aDue.length));
   for (const c of eDue) { const s = sekKarte(c, false); if (s > rest) break; plan.eDue.push(c); rest -= s; }
   if (plan.eDue.length === eDue.length && extraNeuErlaubt()) {
@@ -1039,10 +1077,18 @@ function minuten(sek) { return Math.max(1, Math.round(sek / 60)); }
 function stufeZiel(c) {
   const st = S.k[c.id];
   if (!st) return 0;
+  // Ruhendes verdunstet nicht: Es bleibt so voll, wie es gefüllt wurde. Dasselbe gilt für Extra, solange es Pause
+  // macht – das Kind kann dort gerade nichts auffrischen.
+  if (c.rolle === 'ruht' || (c.rolle === 'extra' && extraPause())) return st.lv;
   return daysBetween(st.due, today()) > MODELL.verblasst ? Math.max(0, st.lv - 1) : st.lv;
 }
 function pct(x) { return x >= 1 ? 100 : Math.max(0, Math.floor(x * 100 + 1e-9)); }
 function trankStufe(id) { const t = S.schreiben.t[id]; return t ? Math.max(0, Math.min(3, t.lv || 0)) : 0; }
+// Lese-Siegel (seit dl-v8): eines je Leseblatt, das gemacht (selbst geprüft) UND mit der Lösung verglichen ist (Punkte
+// eingetragen) – nie nach der Punktezahl. Das Ersatz-Blatt zählt mit. Gezeigt und verlangt werden LESE_SIEGEL (3).
+function leseSiegel() {
+  return Math.min(LESE_SIEGEL, LESE.filter(a => { const st = S.schreiben.a[a.id]; return !!st && !!st.selbst && Array.isArray(st.herz) && st.herz.length > 0; }).length);
+}
 function zielStand() {
   const A = MODELL.sicherAb;
   const bereiche = BEREICHE.map(b => {
@@ -1066,9 +1112,14 @@ function zielStand() {
   const gew = x => (x.b.gewicht != null ? Math.max(0, Number(x.b.gewicht) || 0) : 1);
   const summeG = summe(bereiche, gew);
   const wert = summeG ? summe(bereiche, x => x.wert * gew(x)) / summeG : 0;
-  const bereit = bereiche.length > 0 && bereiche.every(x => x.prozent >= ZIELLINIE);
-  const perfekt = bereiche.length > 0 && bereiche.every(x => x.prozent >= 100);
-  return { wert, prozent: pct(wert), bereiche, bereit, perfekt };
+  // BEREIT verlangt seit dl-v8 dazu die Lese-Siegel. Ein schon verdientes BEREIT (S.ui.bereit) bleibt, sobald die
+  // Balken wieder drüber sind: Siegel gehen nie verloren, und wer vor dem Update bereit war, bleibt es.
+  const balkenBereit = bereiche.length > 0 && bereiche.every(x => x.prozent >= ZIELLINIE);
+  const siegel = leseSiegel();
+  const siegelDa = siegel >= LESE_SIEGEL || !!S.ui.bereit;
+  const bereit = balkenBereit && siegelDa;
+  const perfekt = bereiche.length > 0 && bereiche.every(x => x.prozent >= 100) && siegelDa;
+  return { wert, prozent: pct(wert), bereiche, bereit, perfekt, balkenBereit, siegel, siegelSoll: LESE_SIEGEL };
 }
 function titelIndex(z) {
   if (z.bereit) return 4;
@@ -1147,8 +1198,27 @@ function prognose() {
     }).filter(x => x.n);
     return { bereit: bars.length && bars.every(x => pct(x.wert) >= ZIELLINIE), prozent: pct(summe(bars, x => x.wert) / Math.max(1, bars.length)) };
   };
-  for (let d = t0; d <= tt; d = addDays(d, 1)) if (stand(d).bereit) return { tag: d, prozent: stand(d).prozent };
+  // Lese-Siegel: frühestens an dem Tag, an dem das letzte nötige Leseblatt dran ist (jedes an seinem Tag gemacht und
+  // hergezeigt; das Ersatz-Blatt nicht mitgerechnet)
+  const ab = siegelFruehestens();
+  if (ab === null) return { tag: '', prozent: stand(tt).prozent };
+  for (let d = t0 > ab ? t0 : ab; d <= tt; d = addDays(d, 1)) if (stand(d).bereit) return { tag: d, prozent: stand(d).prozent };
   return { tag: '', prozent: stand(tt).prozent };
+}
+// Ab welchem Tag alle Lese-Siegel da sein können: '' = schon da (oder nicht nötig), null = geht sich so nicht mehr aus
+function siegelFruehestens() {
+  let fehlt = LESE_SIEGEL - leseSiegel();
+  if (fehlt <= 0 || S.ui.bereit) return '';
+  const t0 = today();
+  // offene Blätter der Reihe nach: schon gemacht (wartet aufs Herzeigen) → heute; sonst an seinem Tag (Probe-Blatt: Tag der Probe)
+  const tage = LESE.filter(a => !a.ersatz).map(a => {
+    const st = S.schreiben.a[a.id] || {};
+    if (st.selbst && Array.isArray(st.herz) && st.herz.length) return null;   // hat sein Siegel schon
+    if (st.selbst) return t0;
+    const tag = a.inProbe && AUFTRAG[a.inProbe] ? AUFTRAG[a.inProbe].ab : a.ab;
+    return tag > t0 ? tag : t0;
+  }).filter(Boolean).sort();
+  return tage.length >= fehlt ? tage[fehlt - 1] : null;
 }
 
 // ================================================================
@@ -1410,6 +1480,7 @@ function home() {
   stopFx();
   SES = null;
   SW = null;
+  LW = null;
   document.body.classList.remove('in-session');
   refreshStreak();
   const z = zielStand();
@@ -1437,6 +1508,21 @@ function home() {
       <button class="btn" type="button" data-act="about">❓ So geht’s</button>
     </div>
   </section>`;
+  neuesZeigen();
+}
+// Einmaliger Hinweis nach einem Update (stoff.js neues): beim ersten Öffnen der Startseite, bis zum Tag „bis“.
+// Gelesen ist er, sobald das Sheet zugeht (Knopf oder daneben getippt) – dann kommt er nie wieder (S.ui.neues).
+let neuesOffen = false;
+function neuesZeigen() {
+  if (!NEUES || neuesOffen || S.ui.neues === String(NEUES.id)) return;
+  if (isDay(NEUES.bis) && today() > NEUES.bis) return;
+  neuesOffen = true;
+  sheet(`<h2 class="sheet-title">${esc(NEUES.titel || 'Neu')}</h2><p class="neues-text">${fmtText(NEUES.text)}</p>`,
+    [{ label: NEUES.knopf || 'Alles klar', value: 'ok', cls: 'go' }]).then(() => {
+    neuesOffen = false;
+    S.ui.neues = String(NEUES.id);
+    save();
+  });
 }
 
 // ---------- Ziel-Karte: große Zahl, Stempel, 3 Balken mit Ziellinie, Countdown, Start ----------
@@ -1467,7 +1553,9 @@ function zielSatz(z, plan) {
   if (d === 0) return z.bereit ? `Heute ist die Schularbeit. Du bist bereit (${z.prozent} %). Wenn du magst: 5 Minuten aufwärmen.`
     : `Heute ist die Schularbeit. ${z.prozent} % sitzen sicher. 5 Minuten aufwärmen holt noch ein paar.`;
   if (z.perfekt) return 'Alle Tränke voll, perfekt! Das ist selten, weil jeden Tag ein paar verdunsten.';
-  if (z.bereit) return 'BEREIT! Alle drei Balken sind über der Ziellinie. Jeden Tag deine Runde, dann bleibst du bereit.';
+  if (z.bereit) return `${bereitSatz(z)} Jeden Tag deine Runde, dann bleibst du bereit.`;
+  // Balken alle drüber, aber ein Lese-Siegel fehlt noch: sagen, was fehlt (kein Stempel)
+  if (z.balkenBereit) { const f = z.siegelSoll - z.siegel; return `Alle drei Balken sind über der Ziellinie. Für BEREIT ${f === 1 ? 'fehlt noch 1 Lese-Siegel' : `fehlen noch ${f} Lese-Siegel`}.`; }
   const drunter = z.bereiche.filter(x => x.prozent < ZIELLINIE);
   if (S.ui.bereit && drunter.length === 1) return `${drunter[0].b.titel} ${istSind(drunter[0].b.titel)} knapp unter die Linie gerutscht (${drunter[0].prozent} %). Deine nächste Runde holt das.`;
   if (d === 1) return 'Morgen ist die Schularbeit. Heute deine Runde, dann früh schlafen. Im Schlaf festigt sich, was du geübt hast.';
@@ -1477,6 +1565,38 @@ function zielSatz(z, plan) {
   if (pr && pr.tag) return `Ziel: alle drei Balken über die Ziellinie. Bereit frühestens ${dateShort(pr.tag)}`;   // dateShort endet mit Punkt
   if (pr) return `Bis ${WEEKDAYS[weekdayOf(testDate())]} schaffst du ca. ${pr.prozent} %, wenn du jeden Tag deine Runde machst.`;
   return 'Ziel: alle drei Balken über die Ziellinie.';
+}
+// „BEREIT! …“ – mit den Lese-Siegeln, wenn sie dazugehören (wer vor dl-v8 bereit war, hat sie vielleicht noch nicht)
+function bereitSatz(z) {
+  const n = z.siegelSoll;
+  return n && z.siegel >= n ? `BEREIT! Alle drei Balken über der Ziellinie und ${n === 3 ? 'drei' : n} Lese-Siegel.` : 'BEREIT! Alle drei Balken sind über der Ziellinie.';
+}
+// Zeile „Lesen ● ○ ○“ unter den Balken: Lese-Siegel, kein Balken, keine Prozent. Nur solange der Termin ansteht
+// (danach nur noch, wenn es Siegel gibt). Antippen erklärt, wofür es ein Siegel gibt.
+function siegelPunkteHTML(z) {
+  return `<span class="siegel" aria-hidden="true">${Array.from({ length: z.siegelSoll }, (_, i) => `<i class="${i < z.siegel ? 'an' : ''}"></i>`).join('')}</span>`;
+}
+function siegelHTML(z) {
+  if (!z.siegelSoll || (!officialTest() && !z.siegel)) return '';
+  return `<button class="siegel-zeile" type="button" data-act="siegel" aria-label="Lesen: ${z.siegel} von ${z.siegelSoll} Lese-Siegeln"><span class="zlabel">Lesen</span>${siegelPunkteHTML(z)}</button>`;
+}
+function siegelSheet() {
+  const z = zielStand();
+  const zeilen = LESE.filter(a => !a.ersatz || (aStand(a) || {}).start).map(a => {
+    const st = aStand(a) || {};
+    const tag = a.inProbe && AUFTRAG[a.inProbe] ? AUFTRAG[a.inProbe].ab : a.ab;
+    const was = st.selbst && herzOffen(st) ? 'gemacht · wartet auf den Vergleich mit der Lösung'
+      : st.selbst ? 'Lese-Siegel ✓'
+      : a.inProbe ? `in der Probe-Schularbeit${tag > today() ? ', ab ' + dateShort(tag) : ''}`
+      : tag > today() ? `ab ${dateShort(tag)}` : 'noch offen';
+    return `<li><b>Leseblatt ${esc(a.blatt)}</b><small>${esc(was)}</small></li>`;
+  }).join('');
+  sheet(`<h2 class="sheet-title">Lese-Siegel</h2>
+    <p class="siegel-gross">${siegelPunkteHTML(z)}</p>
+    <p>Ein Lese-Siegel bekommst du für jedes Leseblatt, das du gemacht und mit Mama oder Papa mit der Lösung verglichen hast. Wie viele Punkte es waren, spielt keine Rolle.</p>
+    <ul class="sw-geschichte">${zeilen}</ul>
+    <p class="fineprint">Für BEREIT brauchst du alle drei Balken über der Ziellinie und ${z.siegelSoll === 3 ? 'drei' : z.siegelSoll} Lese-Siegel.</p>`,
+    [{ label: 'Schließen', value: null, cls: 'go' }]);
 }
 function zielHTML(z, plan) {
   if (!KARTEN.length) return '<div class="panel ziel"><p class="mission-line">Hier kommt bald dein Stoff.</p></div>';
@@ -1498,7 +1618,7 @@ function zielHTML(z, plan) {
       <div class="ziel-zahltxt"><b>geschafft</b><small>${esc(titel)}${S.ui.perfekt ? ' · Abzeichen Perfekt' : ''}</small></div>
       ${stempelHTML(z)}
     </div>
-    <div class="zrows">${z.bereiche.map(x => balkenHTML(x)).join('')}</div>
+    <div class="zrows">${z.bereiche.map(x => balkenHTML(x)).join('')}${siegelHTML(z)}</div>
     <p class="ziel-sub">${esc(zielSatz(z, plan))}</p>
     ${klein}
     ${endspurt}
@@ -1513,11 +1633,20 @@ function zielHTML(z, plan) {
 function missionHeute(plan = tagesPlan(), si = schreibInfo()) {
   const e = S.log[today()] || {};
   const rundeOffen = aOffen(plan) > 0;   // Extra unter dem Deckel gehört nicht zur Mission
+  // Der Papier-Auftrag von heute (②): der offene Pflicht-Auftrag, sonst der heute selbst geprüfte (die Probe geht vor).
+  // Seit dl-v8 kann das ein Schreibauftrag, ein Leseblatt oder die Probe-Schularbeit sein (auftrag.art).
+  const auftrag = si.pflichtOffen ? si.offen : si.heuteGeprueft.find(a => a.art === 'probe') || si.heuteGeprueft[si.heuteGeprueft.length - 1] || null;
+  // Probe-Tag (Lernauftrag Abschnitt 5, 11.11.2026): Die Probe-Schularbeit allein ist die Mission, die Runde ist an
+  // dem Tag freiwillig – auch wenn die Probe später gemacht wird als geplant.
+  const rundeFrei = !!auftrag && auftrag.art === 'probe';
   return {
-    rundeOffen,
-    schreibTag: si.pflichtOffen || si.heuteGeprueft.length > 0,   // gibt es heute ein ②?
+    rundeOffen,          // sind heute noch A-Karten offen (auch am Probe-Tag ehrlich gezählt)
+    rundeFrei,           // Runde heute freiwillig
+    auftrag,
+    art: auftrag ? auftrag.art : '',   // schreiben · lesen · probe
+    schreibTag: !!auftrag,             // gibt es heute ein ②?
     schreibOffen: si.pflichtOffen,
-    fertig: !rundeOffen && !si.pflichtOffen,
+    fertig: (rundeFrei || !rundeOffen) && !si.pflichtOffen,
     getan: (e.a || 0) + (e.n || 0) > 0 || si.heuteGeprueft.length > 0   // heute schon etwas dafür gemacht
   };
 }
@@ -1542,40 +1671,66 @@ function missionZeile(offen, html, act, id) {
     ? `<button class="mzeile" type="button" data-act="${act}"${id ? ` data-id="${esc(id)}"` : ''}>${haken}<span class="mtext">${html}</span></button>`
     : `<div class="mzeile ok">${haken}<span class="mtext">${html}</span></div>`;
 }
+// Wörter je Art des Papier-Auftrags (② im Kasten, Knöpfe, Rundenende). schreibStand() gilt für alle drei Arten:
+// neu · angefangen · geschrieben (bei einem Leseblatt: Fragen beantwortet, noch nicht selbst geprüft).
+function papierKnopf(a) { return PAPIER_KNOPF[a.art][schreibStand(a)]; }   // PAPIER_KNOPF steht bei SCHREIB_KNOPF
+function papierAct(a) { return a.art === 'lesen' ? 'lesen' : 'schreiben'; }
+function leseblattVon(a) { return a.art === 'lesen' ? a : LESEBLATT[a.lesen] || null; }
+// Probe-Schularbeit: Minuten für Leseblatt und Text zusammen (12 + 28 = 40)
+function papierMinuten(a) { const l = a.art === 'probe' ? leseblattVon(a) : null; return (Number(a.minuten) || 6) + (l ? Number(l.minuten) || 0 : 0); }
+// „Schreiben auf Papier“ · „Lesen auf Papier“ · „Probe-Schularbeit auf Papier“
+function papierWort(a) { return a.art === 'lesen' ? 'Lesen auf Papier' : a.art === 'probe' ? 'Probe-Schularbeit auf Papier' : 'Schreiben auf Papier'; }
+// „Schreibauftrag „Einleitung““ · „Leseblatt 1“ · „Probe-Schularbeit“ (für Sätze)
+function papierName(a) { return a.art === 'lesen' ? `Leseblatt ${a.blatt}` : a.art === 'probe' ? 'Probe-Schularbeit' : `Schreibauftrag „${kurzTitel(a)}“`; }
+// Text der Zeile im Kasten: offen mit Stand (Minuten, „angefangen“, „noch selbst prüfen“), erledigt nur der Name
+function papierZeile(a, offen, nummer) {
+  const kopf = `<b>${nummer ? '② ' : ''}${papierWort(a)}</b>`;
+  if (!offen) return kopf;
+  const stand = schreibStand(a);
+  const min = a.art === 'probe' ? `${papierMinuten(a)} Min. mit Uhr` : `ca. ${esc(papierMinuten(a))} Min.`;
+  const wieWeit = { neu: min, angefangen: 'angefangen', geschrieben: 'noch selbst prüfen' }[stand];
+  const was = a.art === 'lesen' ? `Leseblatt ${esc(a.blatt)}`
+    : a.art === 'probe' ? `Leseblatt ${esc(leseblattVon(a).blatt)}, dann Personenbeschreibung` : `„${esc(kurzTitel(a))}“`;
+  return `${kopf} · ${was} · ${wieWeit}`;
+}
 // Unter der Ziel-Karte: Kasten „Deine Mission heute“ mit ① und ②, Start führt zum nächsten offenen Schritt.
 // Ganz fertig: „Mission geschafft ✓“, dann wie bisher „Morgen bereit“, Extra-Paket und Freies Üben.
+// Am Probe-Tag (m.rundeFrei) hat der Kasten eine Zeile ohne Nummer: Die Probe-Schularbeit allein ist die Mission.
+// Die Runde steht ohne ○ darunter, als „Runde (freiwillig)“.
 function startHTML(plan) {
   if (plan.testtag) return testtagStartHTML(plan);
   const si = schreibInfo();
   const m = missionHeute(plan, si);
-  const zwei = m.schreibTag;   // ohne Schreibauftrag heute: eine Zeile ohne Nummer
-  const runde = missionZeile(m.rundeOffen, m.rundeOffen ? rundeText(plan, zwei) : `<b>${zwei ? '① ' : ''}Runde</b>`, 'start');
-  // ② zeigt, wie weit der Schreibauftrag ist: neu mit Minuten, sonst „angefangen“ bzw. „noch selbst prüfen“
-  const stand = m.schreibOffen ? schreibStand(si.offen) : '';
-  const wieWeit = { neu: `ca. ${esc(si.offen && si.offen.minuten || 6)} Min.`, angefangen: 'angefangen', geschrieben: 'noch selbst prüfen' }[stand];
-  const schreiben = !zwei ? '' : missionZeile(m.schreibOffen,
-    m.schreibOffen ? `<b>② Schreiben auf Papier</b> · „${esc(kurzTitel(si.offen))}“ · ${wieWeit}` : '<b>② Schreiben auf Papier</b>',
-    'schreiben', m.schreibOffen ? si.offen.id : '');
+  const a = m.auftrag;
+  const zwei = m.schreibTag && !m.rundeFrei;   // ohne Papier-Auftrag heute (oder am Probe-Tag): eine Zeile ohne Nummer
+  const runde = m.rundeFrei ? '' : missionZeile(m.rundeOffen, m.rundeOffen ? rundeText(plan, zwei) : `<b>${zwei ? '① ' : ''}Runde</b>`, 'start');
+  // ② zeigt, wie weit der Auftrag ist: neu mit Minuten, sonst „angefangen“ bzw. „noch selbst prüfen“
+  const papier = !a ? '' : missionZeile(m.schreibOffen, papierZeile(a, m.schreibOffen, zwei), papierAct(a), m.schreibOffen ? a.id : '');
+  const frei = m.rundeFrei && m.rundeOffen
+    ? `<button class="btn neben" type="button" data-act="start"><b>Runde (freiwillig)</b> · ca. ${minuten(plan.sek)} Min.</button><p class="fineprint">Heute kein Muss.</p>` : '';
   if (m.fertig) {
     // Nichts fällig und nichts gemacht (z. B. nach dem Test): wie bisher „Für heute erledigt“, ohne Mission
     if (!m.getan) return `<p class="mission-done">Für heute erledigt ✓</p>${nachMissionHTML(plan)}`;
     return `<div class="mission fertig" role="group" aria-label="Deine Mission heute">
       <p class="mission-done">Mission geschafft ✓</p>
-      <div class="mzeilen">${runde}${schreiben}</div>
+      <div class="mzeilen">${runde}${papier}</div>
+      ${frei}
     </div>${nachMissionHTML(plan)}`;
   }
-  const knopf = m.rundeOffen
+  const knopf = m.rundeOffen && !m.rundeFrei
     ? '<button class="btn go big start" type="button" data-act="start">Start</button>'
-    : `<button class="btn go big start" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">${SCHREIB_KNOPF[stand]}</button>`;
-  const klein = !zwei ? ''
+    : `<button class="btn go big start" type="button" data-act="${papierAct(a)}" data-id="${esc(a.id)}">${papierKnopf(a)}</button>`;
+  const klein = m.rundeFrei ? 'Heute ist nur die Probe dran. Wann, suchst du dir aus.'
+    : !zwei ? ''
     : m.rundeOffen && m.schreibOffen ? 'Sind beide ✓, ist deine Mission geschafft. Reihenfolge, wie du magst.'
     : m.rundeOffen ? 'Noch ①, dann ist deine Mission für heute geschafft.'
     : 'Noch ②, dann ist deine Mission für heute geschafft.';
   return `<div class="mission" role="group" aria-labelledby="mission-titel">
     <div class="eyebrow" id="mission-titel">Deine Mission heute</div>
-    <div class="mzeilen">${runde}${schreiben}</div>
+    <div class="mzeilen">${runde}${papier}</div>
     ${knopf}
     ${klein ? `<p class="fineprint">${klein}</p>` : ''}
+    ${frei}
   </div>`;
 }
 // Testtag wie bisher: Aufwärmen ist freiwillig, keine Mission, kein Schreibauftrag
@@ -1601,9 +1756,11 @@ function nachMissionHTML(plan) {
     </div>
     ${extraAuto ? `<p class="fineprint">Freiwillig, ca. ${minuten(plan.sek)} Min. Extra zählt nicht für die Ziellinie.</p>` : ''}
     ${extra ? '<p class="fineprint">Ein Paket kostet heute ca. 3 Min., an den 3 Tagen danach je ca. 1 Min. Extra zählt nicht für die Ziellinie.</p>' : ''}
+    ${extraPause() && EXTRA_FOLGE.length ? '<p class="fineprint">Extra macht Pause bis nach der Schularbeit.</p>' : ''}
     ${got ? '<p class="fineprint">Freies Üben füllt nichts. Gewusst zählt morgen, wenn der Trank wieder dran ist.</p>' : ''}`}`;
 }
-// „+1 Paket“: nur nach fertiger Runde, höchstens einmal am Tag, nicht in den letzten Tagen vor dem Test
+// „+1 Paket“: nur nach fertiger Runde, höchstens einmal am Tag, nicht in den letzten Tagen vor dem Test und nie,
+// solange Extra Pause macht (extraNeuErlaubt)
 function extraPaketMoeglich() {
   if (!extraNeuErlaubt() || !extraOffeneKarten().length) return false;
   if ((S.day.date === today() ? S.day.extra || 0 : 0) >= MODELL.extraProTag) return false;
@@ -1618,6 +1775,7 @@ function bereichSheet(id) {
   const heute = new Set([...plan.aDue, ...plan.aNeu].map(c => c.id));
   const s = x.stufen;
   const zahlen = `voll ${s[3]} · ⅔ ${s[2]} · ⅓ ${s[1]} · leer ${s[0]}${heute.size ? ` · heute dran ${x.list.filter(c => heute.has(c.id)).length}` : ''}`;
+  const ruhend = KARTEN.filter(c => c.rolle === 'ruht' && c.bereich === id).length;
   let schreib = '';
   if (x.papier) {
     schreib = `<h3 class="sheet-sub">Schreib-Tränke (die Hälfte des Balkens)</h3><div class="sw-liste">${TRAENKE.map(tr => {
@@ -1629,9 +1787,10 @@ function bereichSheet(id) {
     ${balkenHTML(x, false)}
     <p class="zteile">${x.prozent} % geschafft · ${esc(zahlen)}</p>
     ${x.sterne ? `<p class="zteile">⭐ ${x.sterne} Stern-Tränke ruhen bis nach der Schularbeit.</p>` : ''}
+    ${ruhend ? `<p class="zteile">${ruhend} ${esc(RUHEN.traenke || 'Tränke')} ruhen und zählen ${officialTest() ? 'bis zur Schularbeit ' : ''}nicht mit.</p>` : ''}
     ${x.verblasst ? `<p class="fineprint">${x.verblasst} ${x.verblasst === 1 ? 'Trank ist' : 'Tränke sind'} ein bisschen verdunstet. Eine Runde, und ${x.verblasst === 1 ? 'er ist' : 'sie sind'} wieder voll.</p>` : ''}
     ${schreib}
-    <div class="regal-brett mini">${brettInhalt(x.b.id)}</div>
+    <div class="regal-brett mini">${brettInhalt(x.b.id)}${ruhReiheHTML(x.b.id)}</div>
     <p class="fineprint">Puffer: Über der Ziellinie verdunsten jeden Tag ein paar Tränke ein bisschen. Deine Runde holt sie zurück.</p>`,
     [{ label: 'Schließen', value: null, cls: 'go' }]);
 }
@@ -1694,6 +1853,7 @@ function regalZahlen() {
   let erarbeitet = 0, sterne = 0;
   for (const c of KARTEN) {
     const st = S.k[c.id];
+    // Ruhendes zählt weiter mit (und verdunstet nicht, stufeZiel): „erarbeitet“ sinkt durch das Ruhen nie
     if (!st || c.rolle === 'nachschlagen' || stufeZiel(c) < MODELL.sicherAb) continue;
     if (st.s) sterne++; else erarbeitet++;
   }
@@ -1724,13 +1884,26 @@ function brettInhalt(bereichId, rolle = 'ziel') {
   }
   return PAKETE.filter(p => p.bereich === bereichId && p.rolle === rolle && p.karten.length).map(paketReihe).join('');
 }
+// Diktat-Karten verraten mit dem Etikett die Schreibweise – erst zeigen, wenn der Trank im Regal ist
+// Lange Etiketten (Fragen von Antipp-Karten) wären abgeschnitten nur verwirrend – dann ohne Etikett
+function etikett(c, kurz = true) {
+  return !kurz || c.typ === 'regel' || c.kurz.length > 18 || (c.views && c.views[0].diktat && !S.k[c.id]) ? '' : c.kurz;
+}
 function paketReihe(p) {
   const kurz = p.karten.length <= 16;
-  // Diktat-Karten verraten mit dem Etikett die Schreibweise – erst zeigen, wenn der Trank im Regal ist
-  // Lange Etiketten (Fragen von Antipp-Karten) wären abgeschnitten nur verwirrend – dann ohne Etikett
-  const etikett = c => (!kurz || c.typ === 'regel' || c.kurz.length > 18 || (c.views && c.views[0].diktat && !S.k[c.id]) ? '' : c.kurz);
   return `<div class="fam"><div class="fam-kopf"><b>${esc(p.titel)}</b></div>
-    <div class="ritems">${p.karten.map(c => ritem(c, etikett(c))).join('')}</div></div>`;
+    <div class="ritems">${p.karten.map(c => ritem(c, etikett(c, kurz))).join('')}</div></div>`;
+}
+// Ruhende Tränke (Rolle „ruht“, seit dl-v8: die 4 Fälle): eigene Reihe am Ende ihres Bretts. Füllstand unverändert,
+// nicht grau, nichts verdunstet – nur die Überschrift sagt, dass sie ruhen. Antippen erklärt es (trankDetail).
+function ruhReiheHTML(bereichId) {
+  const karten = KARTEN.filter(c => c.rolle === 'ruht' && c.bereich === bereichId);
+  if (!karten.length) return '';
+  const eigen = RUHEN.bereich === bereichId;
+  const titel = eigen && RUHEN.titel ? RUHEN.titel : 'Ruhende Tränke';
+  const bis = officialTest() ? (eigen && RUHEN.bis) || 'ruhen bis nach der Schularbeit' : 'ruhen';
+  return `<div class="fam ruht"><div class="fam-kopf"><b>${esc(titel)}</b><small>${esc(bis)}</small></div>
+    <div class="ritems">${karten.map(c => ritem(c, etikett(c))).join('')}</div></div>`;
 }
 function regalScreen() {
   screen = 'regal';
@@ -1740,10 +1913,10 @@ function regalScreen() {
     const papier = Number(b.papier) > 0 && TRAENKE.length;
     const schreib = papier ? `<div class="fam"><div class="fam-kopf"><b>Schreib-Tränke</b><small>auf Papier geschrieben, selbst geprüft, hergezeigt</small></div>
       <div class="ritems">${TRAENKE.map(tr => `<button class="ritem schreib" type="button" data-act="schreibtrank" data-id="${esc(tr.id)}">${trankHTML(trankStufe(tr.id), { feder: true, gross: true })}<small>${esc(tr.titel)}</small></button>`).join('')}</div></div>` : '';
-    return `<section class="brett"><h2 class="brett-titel outline">${esc(b.titel)}</h2><div class="regal-brett">${schreib}${brettInhalt(b.id)}</div></section>`;
+    return `<section class="brett"><h2 class="brett-titel outline">${esc(b.titel)}</h2><div class="regal-brett">${schreib}${brettInhalt(b.id)}${ruhReiheHTML(b.id)}</div></section>`;
   }).join('');
   const extra = EXTRA_FOLGE.length ? `<section class="brett extra"><h2 class="brett-titel outline">Extra</h2>
-    <p class="brett-sub">Zählt nicht für die Ziellinie. Kommt dran, wenn Zeit ist, oder mit „+1 Paket“.</p>
+    <p class="brett-sub">Zählt nicht für die Ziellinie. ${extraPause() ? 'Extra macht Pause bis nach der Schularbeit.' : 'Kommt dran, wenn Zeit ist, oder mit „+1 Paket“.'}</p>
     <div class="regal-brett">${EXTRA_FOLGE.map(paketReihe).join('')}</div>
     ${extraPaketMoeglich() ? `<button class="btn" type="button" data-act="extra">+1 Paket: ${Math.min(MODELL.extraPaket, extraOffeneKarten().length)} Extra-Tränke</button>` : ''}</section>` : '';
   app.innerHTML = `
@@ -1771,7 +1944,9 @@ function trankDetail(id) {
   if (c.typ === 'verb') return verbDetail(c.verb);
   const lv = karteStufe(c);
   let zeile;
-  if (!st) zeile = c.rolle === 'nachschlagen' ? 'Zum Nachschlagen. Im freien Üben kannst du ihn ausprobieren.' : c.rolle === 'extra' ? 'Noch leer. Kommt aus dem Extra-Regal, wenn Zeit ist.' : `Noch leer. Kommt ${c.p.ab && c.p.ab > today() ? 'ab ' + dateShort(c.p.ab) : 'bald'} als neuer Trank.`;
+  // Ruhender Trank: Stand bleibt, kommt bis nach der Schularbeit nicht dran (Text: motivation-spiel, 11.11.2026)
+  if (c.rolle === 'ruht') zeile = `${officialTest() ? 'Ruht bis nach der Schularbeit.' : 'Ruht.'}${st ? ` Dein Stand bleibt: ${fuellText(lv)}${st.s ? ', mit Stern' : ''}.` : ''} ${RUHEN.wieder || ''}`.trim();
+  else if (!st) zeile = c.rolle === 'nachschlagen' ? 'Zum Nachschlagen. Im freien Üben kannst du ihn ausprobieren.' : c.rolle === 'extra' ? (extraPause() ? 'Noch leer. Extra macht Pause bis nach der Schularbeit.' : 'Noch leer. Kommt aus dem Extra-Regal, wenn Zeit ist.') : `Noch leer. Kommt ${c.p.ab && c.p.ab > today() ? 'ab ' + dateShort(c.p.ab) : 'bald'} als neuer Trank.`;
   else if (st.s) zeile = `Stern-Trank: Im Blitz-Check am ${dayMonth(st.s)} gewusst. Ruht bis nach der Schularbeit. In der Probe kann er drankommen.`;
   else zeile = `${fuellText(lv)} · ${kartenZustand(c)}`;
   sheet(`<div class="tdetail">${karteTrank(c, { gross: true })}<div><h2 class="sheet-title">${esc(c.typ === 'regel' ? c.p.titel : c.kurz)}</h2><p class="zteile">${esc(zeile)}</p></div></div>
@@ -1799,6 +1974,7 @@ function verbDetail(v) {
 function kartenZustand(c) {
   const st = S.k[c.id];
   if (!st) return 'noch nicht im Regal';
+  if (c.rolle === 'extra' && extraPause()) return 'macht Pause bis nach der Schularbeit';
   if (isDue(c)) return 'heute dran';
   if (st.last === today() && effDue(c) <= today()) return 'heute schon geübt';
   return `wieder dran ${inDays(daysBetween(today(), effDue(c)))}`;
@@ -1835,7 +2011,11 @@ function personenHTML() {
   return ps.map(p => `<div class="ws-kat"><b>${esc(p.name || p.id)}</b><ul>${(p.steckbrief || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('') || '<p class="fineprint">Noch keine Personen.</p>';
 }
 // Ein Paket hat begonnen, wenn seine Merkkarte gelesen (S.regel) oder eine seiner Karten im Regal ist
-function paketBegonnen(p) { return !!S.regel[p.id] || p.karten.some(c => S.k[c.id]); }
+// oder eine Karte, die früher in diesem Paket lag (vorher: fb-fall1…4 lagen bis dl-v7 in fb-kern) – ein Paketwechsel
+// darf nichts wieder zusperren, was schon offen war.
+function paketBegonnen(p) {
+  return !!S.regel[p.id] || p.karten.some(c => S.k[c.id]) || PAKETE.some(q => q.vorher === p.id && q.karten.some(c => S.k[c.id]));
+}
 // Zauberbuch-Eintrag lesbar: ohne pakete immer, sonst erst, wenn alle genannten (bekannten) Pakete begonnen haben
 function zbOffen(r) {
   const ids = Array.isArray(r.pakete) ? r.pakete : [];
@@ -1951,10 +2131,10 @@ function about() {
     <div class="panel prose">
       <h2>Kurz gesagt</h2>
       <ul>
-        <li><b>Jeden Tag eine Mission:</b> ① die Runde mit deinen Tränken, ② an Schreibtagen ein Schreibauftrag auf Papier. Dazwischen darfst du Pause machen.</li>
+        <li><b>Jeden Tag eine Mission:</b> ① die Runde mit deinen Tränken, ② an manchen Tagen ein Auftrag auf Papier: schreiben oder ein Leseblatt. Dazwischen darfst du Pause machen.</li>
         <li><b>Ein Trank steigt höchstens einmal am Tag</b> – und nur, wenn er dran ist. Viel auf einmal bringt nichts, jeden Tag ein bisschen schon.</li>
         <li><b>Blitz-Check:</b> Was du schon kannst, kommt gleich als Stern-Trank ins Regal und ruht bis nach der Schularbeit.</li>
-        <li><b>Ziellinie:</b> Sind alle drei Balken über der Linie, bist du bereit. 100 % ist der Bonus.</li>
+        <li><b>Ziellinie:</b> Sind alle drei Balken über der Linie${LESE_SIEGEL ? ` und hast du ${LESE_SIEGEL === 3 ? 'drei' : LESE_SIEGEL} Lese-Siegel` : ''}, bist du bereit. 100 % ist der Bonus.</li>
         <li><b>Fehler sind okay.</b> Du schreibst die richtige Form einmal ab, und der Trank kommt morgen wieder.</li>
       </ul>
     </div>
@@ -2026,7 +2206,7 @@ function rundeAufgaben(plan) {
   q.push(...neuAufgaben(gruppiere(plan.eNeu)));
   return q;
 }
-// Freies Üben: die wackeligsten Tränke, dazu zwei zum Nachschlagen (C) – füllt nichts
+// Freies Üben: die wackeligsten Tränke, dazu zwei zum Nachschlagen (C) – füllt nichts. Ruhendes kommt auch hier nicht dran.
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -2034,7 +2214,7 @@ function shuffle(arr) {
 }
 function uebenAufgaben(n = 10) {
   const score = st => st.bad - st.ok * 0.25;
-  const got = KARTEN.filter(c => S.k[c.id] && c.rolle !== 'nachschlagen')
+  const got = KARTEN.filter(c => S.k[c.id] && c.rolle !== 'nachschlagen' && c.rolle !== 'ruht')
     .sort((a, b) => (S.k[a.id].lv - S.k[b.id].lv) || (score(S.k[b.id]) - score(S.k[a.id])));
   const c3 = shuffle(KARTEN.filter(c => c.rolle === 'nachschlagen')).slice(0, Math.max(2, n - got.length));
   return shuffle([...got.slice(0, n - Math.min(2, c3.length)), ...c3]).slice(0, n).map(c => ({ id: c.id, art: 'ueben' }));
@@ -3022,9 +3202,11 @@ function summary(s, extra) {
   // Mission. Freies Üben, Extra-Paket und Testtag wie bisher.
   const m = missionHeute(plan, si);
   const tagesrunde = s.mode === 'runde' && !plan.testtag && !m.rundeOffen;
-  const etappe1 = tagesrunde && m.schreibOffen;
+  const etappe1 = tagesrunde && m.schreibOffen && !m.rundeFrei;
+  // Probe-Tag: Die Runde war freiwillig. Ist die Probe noch offen, bleibt sie die Mission (kein „Etappe 1 von 2“).
+  const probeOffen = s.mode === 'runde' && m.rundeFrei && m.schreibOffen;
   const title = s.mode === 'ueben' ? 'Gut geübt!' : s.mode === 'extra' ? 'Extra-Paket geschafft!'
-    : etappe1 ? 'Etappe 1 von 2 geschafft!' : tagesrunde && !s.missionVorher ? 'Mission geschafft!' : 'Runde geschafft!';
+    : etappe1 ? 'Etappe 1 von 2 geschafft!' : tagesrunde && m.fertig && !s.missionVorher ? 'Mission geschafft!' : 'Runde geschafft!';
   const altP = x => (vorher.bereiche.find(y => y.b.id === x.b.id) || { prozent: 0 }).prozent;
   const ueber = z.bereiche.filter(x => x.prozent >= ZIELLINIE && altP(x) < ZIELLINIE);   // in dieser Runde über die Linie
   // Je Trank eine Karte; ein Verb (zwei Formen = zwei Karten) nur einmal, als Doppel-Phiole
@@ -3043,13 +3225,17 @@ function summary(s, extra) {
   };
   let meldung = '';
   if (neu.perfekt) meldung = '<p class="meilenstein holo">Alle Tränke voll, perfekt! Das ist selten, weil jeden Tag ein paar verdunsten.</p>';
-  else if (neu.bereit) meldung = '<p class="meilenstein gold">BEREIT! Alle drei Balken sind über der Ziellinie. Neuer Titel: Spell Legend.</p>';
+  else if (neu.bereit) meldung = `<p class="meilenstein gold">${esc(bereitSatz(z))} Neuer Titel: Spell Legend.</p>`;
   else if (neu.titel) meldung = `<p class="meilenstein">Neuer Titel: ${esc(neu.titel)}.</p>`;
   else if (ueber.length) meldung = `<p class="meilenstein">${esc(ueber[0].b.titel)} ${istSind(ueber[0].b.titel)} über der Ziellinie!</p>`;
   const noch2 = etappe1 ? `<div class="panel mission-sum">
-      <p class="mstand"><span class="ok">✓ ① Runde</span> · <span>○ ② Schreiben auf Papier</span></p>
-      <p>Jetzt noch ②: Schreibauftrag „${esc(kurzTitel(si.offen))}“, ca. ${esc(si.offen.minuten || 6)} Min. Dann ist deine Mission für heute geschafft.</p>
-      <div class="two"><button class="btn go" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">${SCHREIB_KNOPF[schreibStand(si.offen)]}</button><button class="btn" type="button" data-act="home">Pause</button></div>
+      <p class="mstand"><span class="ok">✓ ① Runde</span> · <span>○ ② ${papierWort(si.offen)}</span></p>
+      <p>Jetzt noch ②: ${esc(papierName(si.offen))}, ca. ${esc(papierMinuten(si.offen))} Min. Dann ist deine Mission für heute geschafft.</p>
+      <div class="two"><button class="btn go" type="button" data-act="${papierAct(si.offen)}" data-id="${esc(si.offen.id)}">${papierKnopf(si.offen)}</button><button class="btn" type="button" data-act="home">Pause</button></div>
+    </div>`
+    : probeOffen ? `<div class="panel mission-sum">
+      <p>Die Runde war heute freiwillig, stark, dass du sie gemacht hast. Deine Mission heute ist die Probe-Schularbeit. Wann, suchst du dir aus.</p>
+      <div class="two"><button class="btn go" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}">${papierKnopf(si.offen)}</button><button class="btn" type="button" data-act="home">Pause</button></div>
     </div>` : '';
   app.innerHTML = `
   <section class="screen summary">
@@ -3071,7 +3257,7 @@ function summary(s, extra) {
     ${s.mode !== 'ueben' ? `<p class="lob">${esc(lobFuer(s))}</p>` : ''}
     ${parade(s.ups.map(u => ({ id: u.id })), 'Gestiegen')}
     ${parade(s.collected.filter((id, i, a) => a.indexOf(id) === i).map(id => ({ id })), 'Neu im Regal')}
-    <button class="btn ${etappe1 ? '' : 'go'} big" type="button" data-act="home">${etappe1 ? 'Pause' : 'Fertig'}</button>
+    <button class="btn ${etappe1 || probeOffen ? '' : 'go'} big" type="button" data-act="home">${etappe1 || probeOffen ? 'Pause' : 'Fertig'}</button>
   </section>`;
   // Balken laufen vom alten auf den neuen Stand (bei reduzierter Bewegung gleich der Endstand)
   setTimeout(() => app.querySelectorAll('.zsum [data-ziel]').forEach(i => {
@@ -3111,6 +3297,11 @@ function schreibStand(a) {
   return st.fertig ? 'geschrieben' : st.start ? 'angefangen' : 'neu';
 }
 const SCHREIB_KNOPF = { neu: 'Jetzt schreiben', angefangen: 'Weiterschreiben', geschrieben: 'Selbst prüfen' };
+const PAPIER_KNOPF = {
+  schreiben: SCHREIB_KNOPF,
+  lesen: { neu: 'Leseblatt starten', angefangen: 'Weiterlesen', geschrieben: 'Selbst prüfen' },
+  probe: { neu: 'Probe starten', angefangen: 'Probe fortsetzen', geschrieben: 'Selbst prüfen' }
+};
 function kurzTitel(a) {
   if (!a) return '';
   const t = String(a.titel || '');
@@ -3132,31 +3323,58 @@ function ausOffen(st) {
   const h = letztesHerz(st);
   return !!h && hatNochmal(h) && h.tag < today() && st.ausN !== st.herz.length;
 }
+// Was heute auf Papier dran ist. Seit dl-v8 stehen Schreibaufträge und Leseblätter in einer Reihe (PAPIER): Der erste
+// offene, dessen Tag gekommen ist, ist der Schritt ② von heute; ein selbst geprüfter Auftrag am Tag genügt für die
+// Mission. Nach dem Test fallen offene Leseblätter weg (sie gehörten zu dieser Schularbeit).
 function schreibInfo() {
   const pt = planTag(), t = today();
-  const aktiv = AUFTRAEGE.filter(a => a.ab <= pt);
-  const offen = aktiv.filter(a => !(aStand(a) || {}).selbst);
-  const heuteGeprueft = AUFTRAEGE.filter(a => (aStand(a) || {}).selbst === t);
-  return {
+  const selbst = a => (aStand(a) || {}).selbst;
+  const vorbei = testVorbei();
+  const offen = PAPIER.filter(a => a.ab <= pt && !selbst(a) && !(vorbei && a.art === 'lesen'));
+  const heuteGeprueft = PAPIER.filter(a => selbst(a) === t);
+  const si = {
     offen: offen[0] || null,
-    pflichtOffen: !!offen[0] && !heuteGeprueft.length && !istTesttag(),   // ein Schreibauftrag am Tag zählt für die Mission
+    pflichtOffen: !!offen[0] && !heuteGeprueft.length && !istTesttag(),   // ein Papier-Auftrag am Tag zählt für die Mission
     heuteGeprueft,
-    herz: AUFTRAEGE.filter(a => herzOffen(aStand(a))),
-    aus: AUFTRAEGE.filter(a => ausOffen(aStand(a)))
+    herz: AUFTRAEGE.filter(a => herzOffen(aStand(a))),     // Texte, die aufs Herzeigen warten
+    leseHerz: LESE.filter(a => herzOffen(aStand(a))),      // Leseblätter, die auf den Vergleich mit der Lösung warten
+    aus: AUFTRAEGE.filter(a => ausOffen(aStand(a))),
+    ersatz: null
   };
+  si.ersatz = ersatzBlatt(si);
+  return si;
+}
+// Ersatz-Blatt (Leseblatt 4): nur als freiwilliger Knopf unter dem Kasten, ab seinem Tag (Mo 16.11.) und vor dem
+// Testtag, solange ein Lese-Siegel fehlt. Ein Blatt, das nur noch aufs Herzeigen wartet, zählt dabei schon als Siegel:
+// Dann fehlt das Herzeigen, kein weiteres Blatt. Wichtigster Fall: Die Probe wurde nicht gemacht – ihr Leseblatt gäbe
+// es sonst nur mit den ganzen 40 Minuten. Angefangen bleibt das Ersatz-Blatt sichtbar, bis es geprüft ist.
+function ersatzBlatt(si) {
+  const a = LESE.find(x => x.ersatz && !(aStand(x) || {}).selbst);
+  const d = testIn();
+  if (!a || !officialTest() || d == null || d < 1 || a.ab > today()) return null;
+  if ((aStand(a) || {}).start) return a;
+  return leseSiegel() + si.leseHerz.length < LESE_SIEGEL ? a : null;
 }
 // Unter dem Kasten „Deine Mission heute“, ohne Nummer und ohne ○: Herzeigen und Ausbessern gehören nicht zur
-// Mission. Dazu wie bisher ein Schreibauftrag, der heute nicht mehr Pflicht ist (heute schon einer geprüft, etwa
-// beim Nachholen): freiwillig, damit das Kind aufholen kann.
+// Mission. Dazu wie bisher ein Auftrag, der heute nicht mehr Pflicht ist (heute schon einer geprüft, etwa beim
+// Nachholen): freiwillig, damit das Kind aufholen kann. Seit dl-v8 auch Leseblätter (Herzeigen = Lösung vergleichen)
+// und das Ersatz-Blatt.
 function schreibPanelHTML(plan) {
-  if (!AUFTRAEGE.length) return '';
+  if (!PAPIER.length && !LESE.length) return '';
   const si = schreibInfo();
   const teile = [];
   for (const a of si.herz) teile.push(`<button class="btn neben" type="button" data-act="herzeigen" data-id="${esc(a.id)}"><b>Herzeigen:</b> „${esc(kurzTitel(a))}“ · dein Blatt für Mama oder Papa, 1 Min.</button>`);
+  for (const a of si.leseHerz) teile.push(`<button class="btn neben" type="button" data-act="leseHerz" data-id="${esc(a.id)}"><b>Herzeigen:</b> Leseblatt ${esc(a.blatt)} · mit Mama oder Papa die Lösung vergleichen, 3 Min.</button>`);
   for (const a of si.aus) teile.push(`<button class="btn neben" type="button" data-act="ausbessern" data-id="${esc(a.id)}"><b>Ausbessern:</b> „${esc(kurzTitel(a))}“ · ca. 3 Min.</button>`);
   if (si.offen && !si.pflichtOffen) {
-    const stand = schreibStand(si.offen);
-    teile.push(`<button class="btn neben" type="button" data-act="schreiben" data-id="${esc(si.offen.id)}"><b>${stand === 'neu' ? 'Nächster Schreibauftrag' : SCHREIB_KNOPF[stand]}:</b> „${esc(kurzTitel(si.offen))}“ · du darfst ihn auch jetzt schon schreiben</button>`);
+    const a = si.offen, stand = schreibStand(a);
+    // Am Testtag kein Leseblatt und keine Probe mehr anbieten (der Schreibauftrag bleibt wie bisher freiwillig stehen)
+    if (a.art === 'schreiben') teile.push(`<button class="btn neben" type="button" data-act="schreiben" data-id="${esc(a.id)}"><b>${stand === 'neu' ? 'Nächster Schreibauftrag' : SCHREIB_KNOPF[stand]}:</b> „${esc(kurzTitel(a))}“ · du darfst ihn auch jetzt schon schreiben</button>`);
+    else if (!istTesttag()) teile.push(`<button class="btn neben" type="button" data-act="${papierAct(a)}" data-id="${esc(a.id)}"><b>${stand === 'neu' ? (a.art === 'lesen' ? 'Nächstes Leseblatt' : 'Als Nächstes') : papierKnopf(a)}:</b> ${esc(papierName(a))} · ${a.art === 'lesen' ? 'du darfst es auch jetzt schon machen' : 'du darfst sie auch jetzt schon machen'}</button>`);
+  }
+  if (si.ersatz) {
+    const a = si.ersatz;
+    teile.push(`<button class="btn neben" type="button" data-act="lesen" data-id="${esc(a.id)}"><b>Leseblatt ${esc(a.blatt)} (freiwillig):</b> zählt als Ersatz für ein Lese-Siegel · ca. ${esc(a.minuten || 12)} Min.</button>`);
   }
   if (!teile.length) return '';
   return `<div class="panel schreib-panel">${teile.join('')}</div>`;
@@ -3181,13 +3399,21 @@ function schreibStart(id) {
   if (!a) return home();
   const st = aStandNeu(a);
   if (!st.start) { st.start = today(); save(); }
-  SW = { a, schritt: st.fertig ? 'pruefen' : st.person ? 'plan' : 'person', fragen: null, startMs: 0 };
+  // Probe-Schularbeit: Läuft die Uhr schon (st.uhr), geht es nach einer Pause oder einem Neustart beim Schreiben weiter
+  SW = { a, schritt: st.fertig ? 'pruefen' : a.art === 'probe' && st.uhr ? 'schreiben' : st.person ? 'plan' : 'person', fragen: null, startMs: 0 };
   schreibZeigen();
 }
+const BILD_WAHL = { blatt: 'Eine Figur von deinen Arbeitsblättern, die man von Kopf bis Fuß sieht', bild: 'Ein Bild, das Mama oder Papa aussucht' };
 function personWahl(a) {
   const vorher = AUFTRAEGE.filter(x => x.index < a.index && (aStand(x) || {}).person).pop();
   const personen = Array.isArray(SCHREIBEN.personen) ? SCHREIBEN.personen : [];
   const opts = [];
+  // vorschlag (seit dl-v8, fachdidaktik 11.11.2026): Ganzer Text und Probe werden nach einem Bild geschrieben, auf dem
+  // man die Person von Kopf bis Fuß sieht. Darum nur die zwei Bild-Möglichkeiten, die empfohlene zuerst – kein
+  // Steckbrief (der liefert die Details fertig) und niemand aus dem Gedächtnis (Papa, Oma).
+  if (a.vorschlag && BILD_WAHL[a.vorschlag]) {
+    return [a.vorschlag, ...Object.keys(BILD_WAHL).filter(id => id !== a.vorschlag)].map((id, i) => ({ id, text: BILD_WAHL[id], empf: i === 0 }));
+  }
   if (a.person) { const p = personen.find(x => x.id === a.person); if (p) opts.push({ id: p.id, text: p.name, empf: true }); }
   if (!a.ganz) {
     if (vorher && (aStand(vorher) || {}).person) opts.push({ id: aStand(vorher).person, text: 'Dieselbe Person wie beim letzten Mal', empf: true, gleich: true });
@@ -3201,7 +3427,7 @@ function personWahl(a) {
 }
 function personName(id) {
   const p = (Array.isArray(SCHREIBEN.personen) ? SCHREIBEN.personen : []).find(x => x.id === id);
-  return p ? p.name : { heft: 'die Person aus deinem Heft-Text', papa: 'Papa', mama: 'Mama', oma: 'Oma oder Opa', blatt: 'eine Person aus deinen Arbeitsblättern', bild: 'die Person auf dem Bild' }[id] || '';
+  return p ? p.name : { heft: 'die Person aus deinem Heft-Text', papa: 'Papa', mama: 'Mama', oma: 'Oma oder Opa', blatt: 'eine Figur von deinen Arbeitsblättern', bild: 'die Person auf dem Bild' }[id] || '';
 }
 function steckbriefHTML(id) {
   const p = (Array.isArray(SCHREIBEN.personen) ? SCHREIBEN.personen : []).find(x => x.id === id);
@@ -3227,7 +3453,11 @@ function checklisteFuer(a) {
   const punkt = teil => text => ({ text, teil, bedingt: BEDINGT.test(String(text)) });
   const teile = a.traenke.flatMap(id => (teilInfo(id).checkliste || []).map(punkt(a.ganz ? TRANK[id].titel : '')));
   const ganz = a.ganz && SCHREIBEN.ganzerText && Array.isArray(SCHREIBEN.ganzerText.checkliste) ? SCHREIBEN.ganzerText.checkliste.map(punkt('ganzer Text')) : [];
-  return [...teile, ...ganz];
+  // Probe-Schularbeit: die 4 Punkte des Leseblatts dazu. Sie hängen HINTEN an (haken hängt am Index – die Punkte davor
+  // bleiben, wo sie sind) und stehen nur in der Anzeige vorne (vorne: true), weil das Leseblatt Teil 1 ist.
+  const l = a.lesen ? LESEBLATT[a.lesen] : null;
+  const lesen = l ? LESE_CHECK.map(text => ({ text, teil: `Leseblatt ${l.blatt}`, bedingt: false, vorne: true })) : [];
+  return [...teile, ...ganz, ...lesen];
 }
 // haken und passtNicht auf die Länge der Liste bringen (ältere Stände haben kein passtNicht)
 function checkStand(st, liste) {
@@ -3249,7 +3479,10 @@ function schreibZeigen() {
   screen = 'schreiben';
   stopFx();
   const a = SW.a, st = aStandNeu(a);
-  const kopf = `${topbar(esc(a.ganz ? 'Ganzer Text' : 'Schreibauftrag'))}<div class="panel sw-kopf"><div class="eyebrow">${a.probe ? 'Generalprobe' : 'auf Papier'}</div><h2>${esc(a.titel)}</h2>${a.text ? `<p>${fmtText(a.text)}</p>` : ''}</div>`;
+  // Probe-Schularbeit (seit dl-v8): Teil 1 Leseblatt, Teil 2 Personenbeschreibung, die Uhr zählt mit (st.uhr)
+  const probe2 = a.art === 'probe', blatt = probe2 ? LESEBLATT[a.lesen] : null;
+  const vorher = ['person', 'plan', 'schreiben'].includes(SW.schritt);
+  const kopf = `${topbar(esc(probe2 ? 'Probe-Schularbeit' : a.ganz ? 'Ganzer Text' : 'Schreibauftrag'))}<div class="panel sw-kopf"><div class="eyebrow">${a.probe ? 'Generalprobe' : 'auf Papier'}</div><h2>${esc(probe2 ? 'Probe-Schularbeit auf Papier' : a.titel)}</h2>${a.text && (!probe2 || vorher) ? `<p>${fmtText(a.text)}</p>` : ''}${probe2 && vorher ? `<p class="probe-teile">Teil 1: Leseblatt ${esc(blatt.blatt)}, ca. ${esc(blatt.minuten || 12)} Min. Teil 2: Personenbeschreibung, ca. ${esc(a.minuten)} Min. Die Uhr zählt mit, sie stoppt dich nicht.</p>` : ''}</div>`;
   let body = '';
   if (SW.schritt === 'person') {
     body = `<div class="panel"><h3 class="sw-frage">Wen beschreibst du?</h3>
@@ -3259,24 +3492,26 @@ function schreibZeigen() {
     body = `<div class="panel"><p class="sw-wen">Du beschreibst: <b>${esc(personName(st.person))}</b></p>${steckbriefHTML(st.person)}
       <h3 class="sw-frage">Dein Bauplan</h3>${bauplanHTML(a)}${plan}${a.wortspeicher === 'zu' ? '' : bausteineHTML(a)}
       <div class="two">${wsKnopf(a, 'plan')}</div></div>
-      <button class="btn go big" type="button" data-act="swSchreiben">Los, ich schreibe</button>`;
+      <button class="btn go big" type="button" data-act="swSchreiben">${probe2 ? 'Los, die Uhr zählt mit' : 'Los, ich schreibe'}</button>`;
   } else if (SW.schritt === 'schreiben') {
     // ruhiger Bildschirm, keine Uhr (nur die Probe misst die Zeit, sie zählt mit, nicht runter)
-    body = `<div class="panel ruhe"><p class="ruhe-gross">Nimm ein Blatt und deine Füllfeder.</p>
-      <p>${a.ganz ? 'Schreib den ganzen Text: Überschrift, dann vier Absätze – Einleitung, Kopf und Gesicht, Kleidung, Schluss.' : '4 bis 6 Sätze, in der Gegenwart.'}</p>
+    body = `<div class="panel ruhe"><p class="ruhe-gross">${probe2 ? `Hol dir Leseblatt ${esc(blatt.blatt)}, ein Blatt und deine Füllfeder.` : 'Nimm ein Blatt und deine Füllfeder.'}</p>
+      ${probe2 && st.uhr ? `<p class="probe-uhr" id="probe-uhr" role="timer">${esc(probeUhrText(st))}</p>` : ''}
+      <p>${probe2 ? `<b>Teil 1:</b> Leseblatt ${esc(blatt.blatt)}, allein. <b>Teil 2:</b> Stichwort-Plan, dann der ganze Text: Überschrift und vier Absätze – Einleitung, Kopf und Gesicht, Kleidung, Schluss.`
+        : a.ganz ? 'Schreib den ganzen Text: Überschrift, dann vier Absätze – Einleitung, Kopf und Gesicht, Kleidung, Schluss.' : '4 bis 6 Sätze, in der Gegenwart.'}</p>
       ${a.wortspeicher === 'ueberarbeiten' ? '<p class="fineprint">Der Wortspeicher kommt erst nachher, zum Überarbeiten.</p>' : ''}
       <details class="bauplan-zu"><summary>Bauplan ansehen</summary>${bauplanHTML(a)}</details>
       ${wsKnopf(a, 'schreiben')}</div>
-      <button class="btn go big" type="button" data-act="swFertig">Fertig geschrieben</button>`;
+      <button class="btn go big" type="button" data-act="swFertig">${probe2 ? 'Fertig mit beiden Teilen' : 'Fertig geschrieben'}</button>`;
   } else if (SW.schritt === 'pruefen') {
     const liste = checklisteFuer(a);
     checkStand(st, liste);
     const alle = checklisteFertig(st, liste);
     let gruppe = '';
     body = `${st.dauer ? `<p class="sw-dauer">Du hast ${st.dauer} Minuten gebraucht.</p>` : ''}
-      <div class="panel"><h3 class="sw-frage">Selbst prüfen</h3><p>Lies deinen Text halblaut und hak ab, was stimmt. Fehlt was, bessere es am Blatt aus.</p>
+      <div class="panel"><h3 class="sw-frage">Selbst prüfen</h3><p>${probe2 ? 'Schau zuerst auf dein Leseblatt, dann lies deinen Text halblaut. Hak ab, was stimmt.' : 'Lies deinen Text halblaut und hak ab, was stimmt.'} Fehlt was, bessere es am Blatt aus.</p>
       ${liste.some(x => x.bedingt) ? '<p class="pbedingt-hinweis">„Wenn es passt“ heißt: wenn deine Person das hat oder man es sieht. Sonst tipp auf „passt hier nicht“.</p>' : ''}
-      <div class="pchecks">${liste.map((x, i) => {
+      <div class="pchecks">${liste.map((x, i) => ({ x, i })).sort((p, q) => (q.x.vorne ? 1 : 0) - (p.x.vorne ? 1 : 0)).map(({ x, i }) => {
         const kopfzeile = x.teil && x.teil !== gruppe ? `<p class="pgruppe">${esc(gruppe = x.teil)}</p>` : '';
         const nicht = x.bedingt && st.passtNicht[i];
         const haken = `<button type="button" class="pcheck${x.bedingt ? ' bedingt' : ''}${st.haken[i] ? ' on' : ''}${nicht ? ' nicht' : ''}" data-act="ptick" data-i="${i}" aria-pressed="${st.haken[i]}"><i aria-hidden="true"></i><span>${fmtText(x.text)}</span></button>`;
@@ -3297,13 +3532,13 @@ function schreibZeigen() {
     const lv = a.traenke.map(id => trankStufe(id));
     // Was von der Mission noch fehlt (am Testtag gibt es keine Mission)
     const m = istTesttag() ? null : missionHeute();
-    const mission = !m ? '' : m.rundeOffen ? '<p class="sw-mission">Noch ① Runde, dann ist deine Mission geschafft.</p>'
-      : '<p class="sw-mission"><b>Mission geschafft ✓</b> Für heute ist alles drin.</p>';
+    const mission = missionSatzHTML(m);
     body = `<div class="panel sw-drittel"><div class="sw-traenke">${a.traenke.map((id, i) => `<span>${trankHTML(lv[i], { feder: true, gross: true, neu: true })}<small>${esc(TRANK[id].titel)}</small></span>`).join('')}</div>
-      <p class="ruhe-gross">${a.traenke.length === 1 ? `Trank „${esc(TRANK[a.traenke[0]].titel)}“ ist zu einem Drittel voll!` : 'Selbst geprüft – stark!'}</p>
+      <p class="ruhe-gross">${a.traenke.length === 1 ? `Trank „${esc(TRANK[a.traenke[0]].titel)}“ ist zu einem Drittel voll!`
+        : probe2 ? `Probe geschafft! ${papierMinuten(a)} Minuten am Stück, wie am ${TEST ? WEEKDAYS[weekdayOf(TEST.datum)] : 'Testtag'}.` : 'Selbst geprüft – stark!'}</p>
       ${mission}
       ${st.rate === 'erkannt' ? '<p>Erkannt! Deine Beschreibung funktioniert.</p>' : st.rate === 'nicht' ? '<p>Nicht erkannt. Welches Detail hätte geholfen? Schreib einen Satz dazu.</p>' : ''}
-      <p>Zeig dein Blatt jetzt Mama oder Papa. Das geht auch später.</p></div>
+      <p>${probe2 ? 'Zeig Mama oder Papa jetzt deinen Text und das Leseblatt. Das geht auch später.' : 'Zeig dein Blatt jetzt Mama oder Papa. Das geht auch später.'}</p></div>
       <div class="two"><button class="btn go" type="button" data-act="herzeigen" data-id="${esc(a.id)}">Jetzt herzeigen</button><button class="btn" type="button" data-act="swSpaeter">Später herzeigen</button></div>`;
   } else if (SW.schritt === 'herz') body = herzHTML(a);
   else if (SW.schritt === 'ergebnis') body = ergebnisHTML(a);
@@ -3314,6 +3549,27 @@ function schreibZeigen() {
       <button class="btn go big" type="button" data-act="swAusgebessert">Fertig ausgebessert</button>`;
   }
   app.innerHTML = `<section class="screen schreiben">${kopf}${body}</section>`;
+  if (probe2 && SW.schritt === 'schreiben') probeUhrStart(st);
+}
+// Was von der Mission noch fehlt, nach dem Selbstprüfen eines Papier-Auftrags (am Testtag gibt es keine Mission)
+function missionSatzHTML(m) {
+  return !m ? '' : m.fertig ? '<p class="sw-mission"><b>Mission geschafft ✓</b> Für heute ist alles drin.</p>'
+    : '<p class="sw-mission">Noch ① Runde, dann ist deine Mission geschafft.</p>';
+}
+// Uhr der Probe-Schularbeit: zählt mit (nie herunter), zeigt nur ganze Minuten, bricht nichts ab. Der Start steht im
+// Speicher (st.uhr, Millisekunden) – sperrt sich das iPhone beim Schreiben und die App startet neu, läuft sie weiter.
+let uhrTimer = 0;
+function probeUhrText(st) {
+  const m = Math.max(0, Math.floor((Date.now() - (st.uhr || Date.now())) / 60000));
+  return m < 1 ? 'Die Uhr zählt mit: gerade gestartet' : `Die Uhr zählt mit: ${m} Min.`;
+}
+function probeUhrStart(st) {
+  clearInterval(uhrTimer);
+  uhrTimer = setInterval(() => {
+    const el = $('#probe-uhr');
+    if (!el) { clearInterval(uhrTimer); return; }
+    el.textContent = probeUhrText(st);
+  }, 10000);
 }
 function swPerson(id) {
   const st = aStandNeu(SW.a);
@@ -3322,11 +3578,19 @@ function swPerson(id) {
   SW.schritt = 'plan';
   schreibZeigen();
 }
-function swSchreiben() { SW.schritt = 'schreiben'; SW.startMs = Date.now(); schreibZeigen(); }
+function swSchreiben() {
+  SW.schritt = 'schreiben';
+  SW.startMs = Date.now();
+  if (SW.a.art === 'probe') { const st = aStandNeu(SW.a); if (!st.uhr) { st.uhr = SW.startMs; save(); } }   // Uhr der Probe-Schularbeit
+  schreibZeigen();
+}
 function swFertig() {
   const st = aStandNeu(SW.a);
   st.fertig = today();
-  if (SW.a.probe && SW.startMs) st.dauer = Math.max(1, Math.round((Date.now() - SW.startMs) / 60000));   // Probe: Uhr zählt mit
+  // Probe: Die Uhr zählt mit. Mehr als 3 Stunden heißt: über Nacht liegen geblieben – dann keine Minuten nennen.
+  const startMs = st.uhr || SW.startMs;
+  const dauer = startMs ? Math.max(1, Math.round((Date.now() - startMs) / 60000)) : 0;
+  if (SW.a.probe && dauer && dauer <= 180) st.dauer = dauer;
   save();
   SW.schritt = 'pruefen';
   schreibZeigen();
@@ -3353,12 +3617,26 @@ function swNicht(b) {
 // Alles abgehakt → selbst geprüft: Trank ⅓ (zählt für die Mission)
 function selbstVerbuchen(a) {
   const st = aStandNeu(a);
-  if (!st.selbst) st.selbst = today();
+  if (!st.selbst) { st.selbst = today(); papierZaehlen(); }
   for (const id of a.traenke) {
     const t = S.schreiben.t[id] = S.schreiben.t[id] || { lv: 0, passt: [] };
     t.lv = Math.max(t.lv || 0, 1);
   }
+  // Probe-Schularbeit: Ihr Leseblatt ist damit auch gemacht und selbst geprüft (seine 4 Punkte stehen hinten in haken).
+  // Es wartet dann wie jedes Leseblatt auf den Vergleich mit der Lösung (Herzeigen) – erst der bringt das Lese-Siegel.
+  const l = a.lesen ? LESEBLATT[a.lesen] : null;
+  if (l) {
+    const ls = aStandNeu(l);
+    if (!ls.start) ls.start = st.start || st.selbst;
+    if (!ls.fertig) ls.fertig = st.fertig || st.selbst;
+    if (!ls.selbst) ls.selbst = st.selbst;
+    ls.haken = (Array.isArray(st.haken) ? st.haken : []).slice(-LESE_CHECK.length).map(Boolean);
+  }
 }
+// Ein selbst geprüfter Papier-Auftrag zählt im Tagesprotokoll als eine neue Aufgabe – so, wie er in heuteOffen als
+// eine offene zählt. Damit gilt ein Tag als „Mission geschafft“, an dem nur der Papier-Auftrag dran war (Probe-Tag:
+// die Runde ist freiwillig); ohne Eintrag sähe der Tag aus wie „nichts fällig“.
+function papierZaehlen() { if (STATUS) STATUS.zaehleNeu(S.log, today(), 0); }
 function swGeprueft() {
   const a = SW.a, st = aStandNeu(a), liste = checklisteFuer(a);
   checkStand(st, liste);
@@ -3446,6 +3724,8 @@ function herzVerbuchen(a, teile, punkt) {
 }
 function ergebnisHTML(a) {
   const h = letztesHerz(aStand(a));
+  // Probe-Schularbeit: Das Leseblatt wartet noch auf den Vergleich mit der Lösung – gleich anbieten
+  const leseWartet = a.lesen && LESEBLATT[a.lesen] && herzOffen(aStand(LESEBLATT[a.lesen])) ? LESEBLATT[a.lesen] : null;
   const teile = (h && h.teile) || {};
   const passt = a.traenke.filter(id => teile[id] === 'passt');
   const nochmal = a.traenke.filter(id => teile[id] === 'nochmal');
@@ -3458,7 +3738,8 @@ function ergebnisHTML(a) {
   return `<div class="panel"><h3 class="sw-frage">${passt.length && !nochmal.length ? 'Passt!' : passt.length ? 'Fast alles passt' : 'Morgen nochmal'}</h3>
     <div class="sw-liste">${zeilen}</div>
     <p class="ruhe-gross">Leg das Blatt in deine Schreibmappe.</p></div>
-    <button class="btn go big" type="button" data-act="home">Fertig</button>`;
+    ${leseWartet ? `<button class="btn go big" type="button" data-act="leseHerz" data-id="${esc(leseWartet.id)}">Weiter: Leseblatt ${esc(leseWartet.blatt)} vergleichen</button>` : ''}
+    <button class="btn ${leseWartet ? '' : 'go '}big" type="button" data-act="home">${leseWartet ? 'Später' : 'Fertig'}</button>`;
 }
 function ausbessernStart(id) {
   const a = AUFTRAG[id];
@@ -3476,6 +3757,150 @@ function swAusgebessert() {
 function wortspeicherSheet() {
   sheet(`<h2 class="sheet-title">Wortspeicher</h2><p class="fineprint">Von oben nach unten, darin nach dem Alphabet.</p>${wortspeicherHTML()}`, [{ label: 'Schließen', value: null, cls: 'go' }]);
 }
+
+// ---------- Leseblatt auf Papier (seit dl-v8, Lernauftrag Abschnitt 5 vom 11.11.2026) ----------
+// Gleicher Ablauf wie der Schreibauftrag: Auftrag lesen → auf Papier machen → selbst prüfen (4 Punkte der Merkkarte,
+// dann ist die Mission des Tages ✓) → herzeigen: Mama oder Papa vergleichen mit dem Lösungsblatt und tippen die
+// Punkte (0 … LESE_FRAGEN). Die Zahl wird nur gespeichert: Sie füllt keinen Trank, schaltet nichts frei, und das Kind
+// sieht nie einen Vergleich. Das Lese-Siegel gibt es fürs Machen und Vergleichen, nie nach Punkten.
+// Der Lesetext steht nicht in der App. Stand je Blatt in S.schreiben.a[<id>] (wie ein Schreibauftrag, damit auch ein
+// älterer App-Stand ihn nicht verliert): start, fertig, haken[4], selbst, herz: [{ tag, punkte }].
+let LW = null;   // laufendes Leseblatt { a, schritt, punkte }
+function leseStart(id) {
+  const a = LESEBLATT[id];
+  if (!a) return home();
+  const st = aStandNeu(a);
+  if (!st.start) { st.start = today(); save(); }
+  LW = { a, schritt: st.selbst ? (herzOffen(st) ? 'geprueft' : 'ergebnis') : st.fertig ? 'pruefen' : 'auftrag', punkte: null };
+  leseZeigen();
+}
+function merkkarte() { return (Array.isArray(STOFF.zauberbuch) ? STOFF.zauberbuch : []).find(r => r && r.id === LESEN.merkkarte) || null; }
+function merkkarteSheet() {
+  const r = merkkarte();
+  if (!r) return;
+  sheet(`<h2 class="sheet-title">${esc(r.titel || 'Merkkarte')}</h2><div class="rulebody">${regelHTML(r.html)}</div>`, [{ label: 'Schließen', value: null, cls: 'go' }]);
+}
+function leseCheckStand(st) {
+  if (!Array.isArray(st.haken) || st.haken.length !== LESE_CHECK.length) st.haken = LESE_CHECK.map((_, i) => !!(st.haken || [])[i]);
+}
+function leseZeigen() {
+  if (!LW) return home();
+  screen = 'lesen';
+  stopFx();
+  const a = LW.a, st = aStandNeu(a);
+  const mk = merkkarte() ? '<button class="btn" type="button" data-act="merkkarte">Merkkarte ansehen</button>' : '';
+  const kopf = `${topbar('Lesen auf Papier')}<div class="panel sw-kopf"><div class="eyebrow">auf Papier</div><h2>${esc(a.titel)}</h2>${LW.schritt === 'auftrag' && a.text ? `<p>${fmtText(a.text)}</p>` : ''}</div>`;
+  let body = '';
+  if (LW.schritt === 'auftrag') {
+    // ruhiger Bildschirm, keine Uhr in der App: Gelesen und geschrieben wird am Blatt
+    body = `<div class="panel ruhe"><p class="ruhe-gross">Nimm das Leseblatt und einen Stift.</p>
+      <p>Lies den Text, dann beantworte die ${LESE_FRAGEN} Fragen am Blatt. Ca. ${esc(a.minuten || 12)} Minuten.</p>
+      ${mk}</div>
+      <button class="btn go big" type="button" data-act="leseFertig">Fertig, alle Fragen beantwortet</button>`;
+  } else if (LW.schritt === 'pruefen') {
+    leseCheckStand(st);
+    const alle = st.haken.every(Boolean);
+    body = `<div class="panel"><h3 class="sw-frage">Selbst prüfen</h3><p>Schau auf dein Leseblatt und hak ab, was stimmt. Fehlt was, mach es am Blatt noch.</p>
+      <div class="pchecks">${LESE_CHECK.map((x, i) => `<button type="button" class="pcheck${st.haken[i] ? ' on' : ''}" data-act="leseTick" data-i="${i}" aria-pressed="${!!st.haken[i]}"><i aria-hidden="true"></i><span>${fmtText(x)}</span></button>`).join('')}</div>
+      <div class="two">${mk}</div></div>
+      <button class="btn go big" type="button" data-act="leseGeprueft" ${alle ? '' : 'disabled'}>Fertig geprüft</button>
+      <p class="fineprint center${alle ? ' unsichtbar' : ''}"${alle ? ' aria-hidden="true"' : ''}>Noch nicht alles abgehakt? Mach es am Blatt, dann hak es ab. Du kannst auch später weitermachen.</p>`;
+  } else if (LW.schritt === 'geprueft') {
+    const m = istTesttag() ? null : missionHeute();
+    body = `<div class="panel sw-drittel"><p class="ruhe-gross">Selbst geprüft – stark!</p>
+      ${a.ersatz ? '' : missionSatzHTML(m)}
+      <p>Jetzt mit Mama oder Papa die Lösung vergleichen. Das geht auch später.</p></div>
+      <div class="two"><button class="btn go" type="button" data-act="leseHerz" data-id="${esc(a.id)}">Jetzt herzeigen</button><button class="btn" type="button" data-act="swSpaeter">Später herzeigen</button></div>`;
+  } else if (LW.schritt === 'herz') {
+    // Der Bildschirm für Mama oder Papa: nur die Zahl der richtigen Antworten, erst antippen, dann eintragen
+    const name = S.settings.name ? esc(S.settings.name) : 'Dein Kind';
+    body = `<div class="panel herz"><div class="eyebrow">Für Mama oder Papa</div>
+      <p class="herz-intro"><b>${name} zeigt dir Leseblatt ${esc(a.blatt)}.</b> Geht die ${LESE_FRAGEN} Fragen mit dem Lösungsblatt durch. Wie viele stimmen?</p>
+      <div class="punkte-knoepfe" role="group" aria-label="Punkte">${Array.from({ length: LESE_FRAGEN + 1 }, (_, n) => `<button class="btn${LW.punkte === n ? ' on' : ''}" type="button" data-act="lesePunkte" data-n="${n}" aria-pressed="${LW.punkte === n}">${n}</button>`).join('')}</div>
+      <p class="fineprint">Die Zahl ändert nichts an den Tränken.</p>
+      <p class="fineprint">Halbe Punkte bitte abrunden.</p></div>
+      <button class="btn go big" type="button" data-act="lesePunkteOk" ${LW.punkte == null ? 'disabled' : ''}>Eintragen</button>`;
+  } else if (LW.schritt === 'ergebnis') {
+    const h = letztesHerz(st), z = zielStand();
+    const n = h && typeof h.punkte === 'number' ? h.punkte : null;
+    // Drei Sätze je nach Punkten (motivation-spiel, 11.11.2026): immer zuerst, was gelungen ist, dann der eine Trick
+    const satz = n == null ? '' : n >= LESE_FRAGEN - 1 ? `${n} von ${LESE_FRAGEN}. Du hast die Antworten im Text gefunden, genau so geht’s.`
+      : n >= Math.ceil(LESE_FRAGEN / 2) ? `${n} von ${LESE_FRAGEN}. Bei den anderen: Such die Stelle im Text und unterstreich sie. Das ist der Trick fürs nächste Blatt.`
+      : `${n} von ${LESE_FRAGEN}. Der Text war eine harte Nuss. Schaut gemeinsam: Wo steht die Antwort?`;
+    body = `<div class="panel sw-drittel"><p class="siegel-gross">${siegelPunkteHTML(z)}</p>
+      <p>${esc(satz)}</p>
+      <p class="ruhe-gross">Lese-Siegel ${z.siegel} von ${z.siegelSoll}!</p>
+      ${LW.bereit ? `<p class="meilenstein gold">${esc(bereitSatz(z))} Neuer Titel: Spell Legend.</p>` : ''}</div>
+      <button class="btn go big" type="button" data-act="home">Fertig</button>`;
+  }
+  app.innerHTML = `<section class="screen schreiben">${kopf}${body}</section>`;
+}
+function leseFertig() {
+  const st = aStandNeu(LW.a);
+  st.fertig = today();
+  save();
+  LW.schritt = 'pruefen';
+  leseZeigen();
+}
+function leseTick(b) {
+  const st = aStandNeu(LW.a), i = +b.dataset.i;
+  leseCheckStand(st);
+  if (!(i >= 0 && i < LESE_CHECK.length)) return;
+  st.haken[i] = !st.haken[i];
+  save();
+  if (st.haken[i]) { sfx('tap'); haptic(); }
+  leseZeigen();
+}
+// Alles abgehakt → selbst geprüft: Die Mission des Tages ist damit ✓ (kein Trank, das Siegel kommt beim Herzeigen)
+function leseVerbuchen(a) {
+  const st = aStandNeu(a);
+  if (!st.selbst) { st.selbst = today(); papierZaehlen(); }
+}
+function leseGeprueft() {
+  const a = LW.a, st = aStandNeu(a);
+  leseCheckStand(st);
+  if (!st.haken.every(Boolean)) return;
+  leseVerbuchen(a);
+  save();
+  sfx('blub');
+  afterRound();   // Mission vielleicht jetzt fertig: melden
+  LW.schritt = 'geprueft';
+  leseZeigen();
+}
+function leseHerzStart(id) {
+  const a = LESEBLATT[id];
+  if (!a || !herzOffen(aStand(a))) return home();
+  LW = { a, schritt: 'herz', punkte: null };
+  SW = null;
+  leseZeigen();
+}
+function lesePunkte(b) {
+  if (!LW || LW.schritt !== 'herz') return;
+  const n = +b.dataset.n;
+  if (!(Number.isInteger(n) && n >= 0 && n <= LESE_FRAGEN)) return;
+  LW.punkte = n;
+  sfx('tap');
+  leseZeigen();
+}
+// Punkte eintragen: Damit ist das Blatt mit der Lösung verglichen → Lese-Siegel. Die Zahl schaltet nichts frei.
+function leseHerzVerbuchen(a, punkte) {
+  const st = aStandNeu(a);
+  if (!Array.isArray(st.herz)) st.herz = [];
+  if (!st.herz.length) st.herz.push({ tag: today(), punkte });
+}
+function lesePunkteOk() {
+  if (!LW || LW.schritt !== 'herz' || LW.punkte == null) return;
+  leseHerzVerbuchen(LW.a, LW.punkte);
+  // Das dritte Siegel kann BEREIT bringen: hier feiern, denn eine Runde kommt danach vielleicht nicht mehr
+  const neu = meilensteine(zielStand());
+  save();
+  afterRound();
+  LW.schritt = 'ergebnis';
+  LW.bereit = !!neu.bereit;
+  leseZeigen();
+  if (neu.bereit || neu.titel || neu.perfekt) { confetti(); sfx('level'); } else { sfx('blub'); haptic(); }
+}
+
 // Zahlen für den Lagebericht (nur Zahlen, kein Text)
 function schreibZahlen() {
   let geschrieben = 0, hergezeigt = 0;
@@ -3529,7 +3954,7 @@ async function resetAll() {
   const d = fresh();
   d.settings = S.settings;
   // Titel, BEREIT und PERFEKT gehören zum Fortschritt; Erklärungen, die schon gelesen wurden, nicht
-  d.ui = { ...d.ui, hideInstall: S.ui.hideInstall, onboarded: S.ui.onboarded, ziellinie: S.ui.ziellinie };
+  d.ui = { ...d.ui, hideInstall: S.ui.hideInstall, onboarded: S.ui.onboarded, ziellinie: S.ui.ziellinie, neues: S.ui.neues };
   S = d;
   save();
   toast('Alles zurückgesetzt.');
@@ -3553,9 +3978,14 @@ function ampelKenntVorwissen() { return !!(STATUS && STATUS.STANDARD && 'vorwiss
 // Seit dl-v5 dazu der Schreibauftrag von heute, damit Legends HQ sagen kann, was von der Mission fehlt:
 // offen (0/1, steckt schon in heuteOffen.neu), erledigt (0/1: heute einer selbst geprüft), herzeigen (Texte, die
 // aufs Herzeigen warten). Am Testtag ist nichts offen.
-function fortschrittBericht() {
+// Seit dl-v8 dazu, nur als Zahlen: art = was heute auf Papier dran ist (1 Schreibauftrag, 2 Leseblatt,
+// 3 Probe-Schularbeit; 0 nichts), blatt = Nummer des Leseblatts dazu (0 keins) und leseHerz = Leseblätter, die auf den
+// Vergleich mit der Lösung warten, als Bitfeld (Blatt 1 = 1, Blatt 2 = 2, Blatt 3 = 4, Blatt 4 = 8). So sagt Legends HQ
+// das richtige Wort („Leseblatt 1 auf Papier“, „Probe-Schularbeit“). Die Punkte der Leseblätter gehen nicht mit.
+function fortschrittBericht(plan = tagesPlan(), si = schreibInfo()) {
   const z = zielStand();
-  const si = schreibInfo();
+  const m = missionHeute(plan, si);
+  const l = m.auftrag ? leseblattVon(m.auftrag) : null;
   let gefragt = 0, gewusst = 0;
   for (const c of KARTEN) {
     const st = S.k[c.id];
@@ -3567,34 +3997,43 @@ function fortschrittBericht() {
     prozent: z.prozent, bereit: z.bereit, perfekt: z.perfekt,
     balken: z.bereiche.map(x => ({ id: x.b.id, titel: x.b.titel, prozent: x.prozent })),
     schreiben: Object.assign(schreibZahlen(), {
-      offen: si.pflichtOffen ? 1 : 0, erledigt: si.heuteGeprueft.length ? 1 : 0, herzeigen: si.herz.length
+      offen: si.pflichtOffen ? 1 : 0, erledigt: si.heuteGeprueft.length ? 1 : 0, herzeigen: si.herz.length,
+      art: { schreiben: 1, lesen: 2, probe: 3 }[m.art] || 0, blatt: l ? l.blatt : 0,
+      leseHerz: si.leseHerz.reduce((bits, a) => bits | (a.blatt >= 1 && a.blatt <= 4 ? 1 << (a.blatt - 1) : 0), 0)
     }),
     check: { gefragt, gewusst }
   };
 }
 // Eingabe für LegendsStatus.bericht(). Ziel (imZiel) = nur Rolle „ziel“; Extra und Schreib-Tränke zählen nicht.
+// Ruhende Karten (Rolle „ruht“) stehen wie Nachschlagen gar nicht im Bericht: Sie sind bis nach dem Test nie fällig
+// und nie neu – sonst hielte Legends HQ sie für liegen gebliebene Wiederholungen.
 function berichtEingabe() {
   vorStartTage();
   const test = ampelKenntVorwissen() ? nextTest() : null;
   const plan = tagesPlan();
   const si = schreibInfo();
-  const unseen = KARTEN.filter(c => !S.k[c.id] && c.rolle !== 'nachschlagen');
+  const m = missionHeute(plan, si);
+  const imBericht = c => c.rolle !== 'nachschlagen' && c.rolle !== 'ruht';
+  const unseen = KARTEN.filter(c => !S.k[c.id] && imBericht(c));
   return {
     app: APP_ID, name: APP_NAME, version: VERSION,
     heute: today(), zeit: clock(),
     test,
     ziel: goalText(test),
     // since: Tag des Sammelns – damit lässt sich der Stand am Eintragetag des Termins nachbilden (Plan)
-    karten: KARTEN.filter(c => S.k[c.id] && c.rolle !== 'nachschlagen').map(c => {
+    karten: KARTEN.filter(c => S.k[c.id] && imBericht(c)).map(c => {
       const st = S.k[c.id];
       return { lv: st.lv, due: effDue(c), last: st.last, since: st.since, imZiel: imZiel(c), label: c.label, ok: st.ok, bad: st.bad };
     }),
     neuOffen: { ziel: unseen.filter(imZiel).length, gesamt: unseen.length },
-    // „Mission fertig“ = A des Tages fertig und Schreibauftrag selbst geprüft; der Schreibauftrag zählt als eine neue
+    // „Mission fertig“ = A des Tages fertig und der Papier-Auftrag selbst geprüft; der Papier-Auftrag zählt als eine neue
     // Aufgabe (fortschritt.schreiben.offen sagt, ob er dabei ist). Am Testtag ist Aufwärmen freiwillig – nichts offen.
-    heuteOffen: plan.testtag ? { faellig: 0, neu: 0 } : { faellig: plan.aDue.length, neu: plan.aNeu.length + (si.pflichtOffen ? 1 : 0) },
+    // Am Probe-Tag ist die Runde freiwillig: Offen ist nur die Probe-Schularbeit (kein „angefangen“, wenn nur die Runde fehlt).
+    heuteOffen: plan.testtag ? { faellig: 0, neu: 0 }
+      : m.rundeFrei ? { faellig: 0, neu: si.pflichtOffen ? 1 : 0 }
+      : { faellig: plan.aDue.length, neu: plan.aNeu.length + (si.pflichtOffen ? 1 : 0) },
     regeln: Object.assign({}, MODELL.ampel),
-    fortschritt: fortschrittBericht(),
+    fortschritt: fortschrittBericht(plan, si),
     log: S.log,         // bericht() trägt f, o, k von heute ein
     plaene: S.plaene    // bericht() friert hier den Plan je Termin ein
   };
@@ -3791,6 +4230,16 @@ const ACT = {
   ausbessern: b => ausbessernStart(b.dataset.id),
   swAusgebessert: () => swAusgebessert(),
   wortspeicher: () => wortspeicherSheet(),
+  // Lesen auf Papier
+  lesen: b => leseStart(b.dataset.id),
+  leseFertig: () => leseFertig(),
+  leseTick: b => leseTick(b),
+  leseGeprueft: () => leseGeprueft(),
+  leseHerz: b => leseHerzStart(b.dataset.id),
+  lesePunkte: b => lesePunkte(b),
+  lesePunkteOk: () => lesePunkteOk(),
+  merkkarte: () => merkkarteSheet(),
+  siegel: () => siegelSheet(),
   // Einstellungen
   clearTest: () => { S.settings.testDate = ''; S.settings.testSince = ''; save(); settings(); },
   hqRestore: () => hqRestore(),
@@ -3813,6 +4262,9 @@ app.addEventListener('mousedown', e => { if (e.target.closest('.keepfocus')) e.p
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     if (screen === 'home') home();
+    // Probe-Schularbeit: Die Uhr gleich nachstellen (im Hintergrund stehen Timer still)
+    const uhr = $('#probe-uhr');
+    if (uhr && SW && SW.a) uhr.textContent = probeUhrText(aStandNeu(SW.a));
     hqReport({ pause: 10 * 60e3 });
   } else if (STATUS && KARTEN.length) {
     // Beim Verlassen den Tag ins Protokoll schreiben (fertig, offen, sicher) – falls die Startseite heute nicht mehr kommt
@@ -3855,15 +4307,18 @@ window.DL = {
   },
   stoff: () => ({ bereiche: BEREICHE.length, pakete: PAKETE.length, karten: KARTEN.length,
     ziel: KARTEN.filter(c => c.rolle === 'ziel').length, extra: KARTEN.filter(c => c.rolle === 'extra').length,
+    ruht: KARTEN.filter(c => c.rolle === 'ruht').length,
     nachschlagen: KARTEN.filter(c => c.rolle === 'nachschlagen').length, traenke: TRAENKE.length, auftraege: AUFTRAEGE.length,
+    leseblaetter: LESE.length, papier: PAPIER.map(a => a.id),
     fehler: STOFF_FEHLER.slice(), extraFolge: EXTRA_FOLGE.map(p => p.id) }),
   // Tagesmenge von heute (so, wie die Startseite sie rechnet)
   tag() {
     const p = tagesPlan(), si = schreibInfo(), z = zielStand();
     const m = missionHeute(p, si);
     return {
-      mission: p.testtag ? 'Testtag (keine Mission)' : `${m.rundeOffen ? '○' : '✓'} Runde${m.schreibTag ? ` · ${m.schreibOffen ? '○' : '✓'} Schreiben` : ''}${m.fertig ? (m.getan ? ' · geschafft' : ' · nichts fällig') : ''}`,
-      herzeigen: si.herz.map(a => a.id), ausbessern: si.aus.map(a => a.id),
+      mission: p.testtag ? 'Testtag (keine Mission)' : `${m.rundeOffen ? '○' : '✓'} Runde${m.rundeFrei ? ' (freiwillig)' : ''}${m.schreibTag ? ` · ${m.schreibOffen ? '○' : '✓'} ${{ schreiben: 'Schreiben', lesen: 'Lesen', probe: 'Probe' }[m.art]}` : ''}${m.fertig ? (m.getan ? ' · geschafft' : ' · nichts fällig') : ''}`,
+      herzeigen: [...si.herz, ...si.leseHerz].map(a => a.id), ausbessern: si.aus.map(a => a.id),
+      papier: m.auftrag ? m.auftrag.id : '', siegel: z.siegel, ersatz: si.ersatz ? si.ersatz.id : '', extraPause: extraPause(),
       tag: today(), wochentag: DAY_SHORT[weekdayOf(today())], testIn: testIn(), endspurt: istEndspurt(), testtag: p.testtag,
       faelligA: p.aDue.length, verben: p.verben.length, neuA: p.aNeu.length, faelligExtra: p.eDue.length, neuExtra: p.eNeu.length,
       merk: p.merk.map(x => x.id), minA: r1(p.sekA / 60), min: r1(p.sek / 60), deckel: deckelHeute(), schonMin: r1(heuteSek() / 60),
@@ -3884,11 +4339,14 @@ window.DL = {
   get ses() { return SES && { cur: SES.cur, phase: SES.phase, karte: SES.cur && BY_ID[SES.cur.id], offen: SES.offen.slice(), rest: SES.queue.length, sek: Math.round(SES.sek) }; },
   // Simulation, nur zum Testen: spielt die Tagesrunde mit denselben Funktionen wie die Runde durch, ohne Oberfläche.
   // p = Anteil richtig bei Wiederholungen, vw = Anteil im Blitz-Check gewusst, Zeit nach MODELL.sek (+ Fehler).
-  // schreiben: Schreibauftrag des Tages selbst prüfen und „Passt“ geben. Gibt die Tagesmenge vorher zurück.
-  autoRunde({ p = 0.85, vw = 0.62, schreiben = true, seed = 1 } = {}) {
+  // schreiben: Papier-Auftrag des Tages selbst prüfen und herzeigen (Schreibauftrag: „Passt“; Leseblatt: punkte
+  // eintragen, Standard 5; Probe-Schularbeit: beides). runde: false lässt die Karten-Runde aus (Probe-Tag).
+  // Gibt die Tagesmenge vorher zurück.
+  autoRunde({ p = 0.85, vw = 0.62, schreiben = true, seed = 1, runde = true, punkte = 5, herzeigen = true } = {}) {
     const vorher = window.DL.tag();
     const plan = tagesPlan(), t = today();
     const rnd = testZufall(hash(t) ^ seed);
+    if (!runde) { plan.merk = []; plan.aDue = []; plan.eDue = []; plan.aNeu = []; plan.eNeu = []; }
     for (const pk of plan.merk) { if (!S.regel[pk.id]) S.regel[pk.id] = t; if (STATUS) STATUS.zaehleZeit(S.log, t, MODELL.sek.merkkarte); }
     for (const c of [...plan.aDue, ...plan.eDue]) {
       const ok = rnd() < p, st = S.k[c.id];
@@ -3908,10 +4366,20 @@ window.DL = {
       const si = schreibInfo();
       if (si.pflichtOffen) {
         const a = si.offen, st = aStandNeu(a);
-        st.person = st.person || 'heft'; st.start = st.start || t; st.fertig = t;
-        st.haken = checklisteFuer(a).map(() => true);
-        selbstVerbuchen(a);
-        herzVerbuchen(a, Object.fromEntries(a.traenke.map(id => [id, 'passt'])), {});
+        st.start = st.start || t; st.fertig = t;
+        if (a.art === 'lesen') {
+          st.haken = LESE_CHECK.map(() => true);
+          leseVerbuchen(a);
+          if (herzeigen) leseHerzVerbuchen(a, punkte);
+        } else {
+          st.person = st.person || 'heft';
+          st.haken = checklisteFuer(a).map(() => true);
+          selbstVerbuchen(a);
+          if (herzeigen) {
+            herzVerbuchen(a, Object.fromEntries(a.traenke.map(id => [id, 'passt'])), {});
+            if (a.lesen && LESEBLATT[a.lesen]) leseHerzVerbuchen(LESEBLATT[a.lesen], punkte);
+          }
+        }
       }
     }
     markDay();
